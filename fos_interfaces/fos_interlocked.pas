@@ -120,11 +120,6 @@ type
  procedure  FOS_N_LockEnterSpin (var N_LOCK:TFOS_NATIVE_LOCK;out   N_LOCK_KEY:NativeUint);
 
 implementation
-{.$IFDEF CPU64}
-uses FOS_LOCKING;
-{.$ENDIF}
-
-var LOCK:TFOS_LOCK;
 
 function FOS_IL_CAS_NATIVE(var Destination: NativeUInt; Comparand, Exchange: NativeUInt):boolean;
 begin
@@ -581,22 +576,8 @@ end;
 function  FOS_IL_CAS128(var Destination: Int128Rec;  Comparand,Exchange: Int128Rec): boolean;
 var test:Int128Rec;
 begin
-// test:=FOS_IL_CompareExchange128(Destination,Exchange,Comparand);
- if not assigned(lock) then begin
-   lock:=TFOS_LOCK.Create;
- end;
- LOCK.Acquire;
- if Destination=Comparand then begin
-   Destination:=Exchange;
-   LOCK.Release;
-   result:=true;
- end else begin
-   LOCK.Release;
-   result:=false;
- end;
- // Crash on OSX
- //test:=InterlockedCompareExchange128(Destination,Exchange,Comparand);
- //result:=(test.Hi=Comparand.hi) and (test.lo=comparand.lo);
+  test:=InterlockedCompareExchange128(Destination,Exchange,Comparand);
+  result:=(test.Hi=Comparand.hi) and (test.lo=comparand.lo);
 end;
 {$ENDIF}
 
@@ -651,8 +632,6 @@ initialization
  assert(FOS_IL_CAS64(testp_c.val,$01,testp_b.val),'critical architecture problem FOS_IL_CompareExchange64 failed result (B)');
  assert(testp_c.val=$1122334554332211,'critical architecture problem FOS_IL_CompareExchange64 failed (B)');
 {$ENDIF}
-finalization
-   if assigned(lock) then
-     lock.Finalize;
+
 
 end.

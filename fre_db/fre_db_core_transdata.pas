@@ -52,7 +52,7 @@ interface
 uses
      Classes,contnrs, SysUtils,fre_db_interface,fre_db_core,fos_art_tree,fos_tool_interfaces,fos_arraygen,fre_db_common,fre_db_persistance_common,fos_strutils,fre_aps_interface,math,fre_system;
 var
-    cFRE_INT_TUNE_TDM_COMPUTE_WORKERS : NativeUInt =  6;
+    cFRE_INT_TUNE_TDM_COMPUTE_WORKERS : NativeUInt =  12;
     cFRE_INT_TUNE_SYSFILTEXTENSION_SZ : NativeUint =  128;
     cFRE_INT_TUNE_FILTER_PURGE_TO     : NativeUint =  0; // 5*1000; // 0 DONT PURGE
 
@@ -372,7 +372,7 @@ type
     FMgr                    : TFRE_DB_SESSION_DC_RANGE_MGR;
 
     function     RangeFilled                          : boolean;
-    procedure    CheckRangeFilledFill                 ;
+    procedure    FillRange                            (const compare_fill : boolean=false);
     function     GetAbsoluteIndexedObj                (const abs_idx : NativeInt):IFRE_DB_Object;
     function     AbsIdxFrom                           (const range_idx : NativeInt):NativeInt;
     function     CheckUidIsInRange                    (const search_uid : TFRE_DB_GUID):boolean;
@@ -384,6 +384,8 @@ type
     procedure    CropRangeFromEndTo                   (const crop_idx  : NativeInt);
     procedure    RangeExecuteQry                      (const qry_start_ix,chunk_start, chunk_end : NativeInt ; var dbos : IFRE_DB_ObjectArray);
     procedure    RangeProcessFilterChangeBasedUpdates (const sessionid: TFRE_DB_SESSION_ID; const storeid: TFRE_DB_NameType; const orderkey: TFRE_DB_NameType ; const AbsCount : NativeInt);
+    procedure    RunCompareRanges                     ;
+    procedure    SwapcompareRange                     ;
   end;
 
   { TFRE_DB_SESSION_DC_RANGE_MGR }
@@ -538,34 +540,16 @@ type
      procedure   ErrorOccurred_WIF                 (const ec : NativeInt ; const em : string);
   end;
 
-
-  { TFRE_DB_SESSION_UPO }
-
-  TFRE_DB_SESSION_UPO = class
-  private
-     FStoreList : TFPHashObjectList;
-     FSessid    : TFRE_DB_NameType;
-     function   GetUpdateStore            (const store_id: shortstring): TFRE_DB_UPDATE_STORE_DESC;
-  public
-     constructor Create                   (const session_id : TFRE_DB_NameType);
-     destructor  Destroy                  ; override;
-     procedure   AddStoreUpdate           (const store_id: TFRE_DB_NameType; const upo: IFRE_DB_Object ; const position,abscount : NativeInt);
-     procedure   AddStoreInsert           (const store_id: TFRE_DB_NameType; const upo: IFRE_DB_Object ; const position,abscount : NativeInt);
-     procedure   AddStoreDelete           (const store_id: TFRE_DB_NameType; const id: TFRE_DB_String  ; const position,abscount : NativeInt);
-     procedure   DispatchAllNotifications ;
-  end;
-
   { TFRE_DB_TRANSDATA_CHANGE_NOTIFIER }
 
   TFRE_DB_TRANSDATA_CHANGE_NOTIFIER=class(IFRE_DB_TRANSDATA_CHANGE_NOTIFIER)
   private
-     FSessionUpdateList : TFPHashObjectList;
+     FSessionUpdateList : TFPHashObjectList;  { gets freed in the session or on failed ctx switch to session }
      FKey               : TFRE_DB_TransStepId;
      function    GetSessionUPO                (const sessionid: TFRE_DB_NameType): TFRE_DB_SESSION_UPO;
   public
      property    TransKey                     : TFRE_DB_TransStepId read FKey;
      constructor Create                       (const key: TFRE_DB_TransStepId);
-     destructor  Destroy                      ;override;
      procedure   AddDirectSessionUpdateEntry  (const update_dbo : IFRE_DB_Object); { add a dbo update for sessions dbo's (forms) }
      procedure   AddGridInplaceUpdate         (const sessionid: TFRE_DB_NameType; const store_id: TFRE_DB_NameType; const upo   : IFRE_DB_Object ; const position,abscount : NativeInt); { inplace update entry for the store }
      procedure   AddGridInsertUpdate          (const sessionid: TFRE_DB_NameType; const store_id: TFRE_DB_NameType; const upo   : IFRE_DB_Object ; const position,abscount : NativeInt);
@@ -674,9 +658,9 @@ type
   TFRE_DB_FILTER_CONTAINER=class
   private
     FOBJArray        : Array of IFRE_DB_Object;
+    FFilteredObjects : TList;
     FCnt             : NativeUint;
     FFilled          : Boolean;
-    FChildQueryCont  : boolean;
     FFCCreationTime  : TFRE_DB_DateTime64;
     FFilters         : TFRE_DB_DC_FILTER_DEFINITION;
     FFullKey         : TFRE_DB_TRANS_COLL_DATA_KEY;
@@ -693,8 +677,6 @@ type
     function    CalcRangeMgrKey               (const sessionid : TFRE_DB_SESSION_ID):TFRE_DB_SESSION_DC_RANGE_MGR_KEY;
     property    IsFilled                      : boolean read FFilled write SetFilled;
     procedure   CheckDBReevaluation           ;
-    //function    ExecuteFilter                 (const iter: IFRE_DB_Obj_Iterator; const sessionid: TFRE_DB_SESSION_ID; var startidx, endidx: NativeInt): NativeInt; { compare run = second run on filter updates }
-    //function    ExecuteFilterPointQuery       (const iter: IFRE_DB_Obj_Iterator; const qry_context: TFRE_DB_QUERY):NativeInt;
     procedure   CheckFilteredAdd              (const obj : IFRE_DB_Object);
     procedure   Notify_CheckFilteredUpdate    (const td  : TFRE_DB_TRANSFORMED_ORDERED_DATA ; const old_obj,new_obj : IFRE_DB_Object ; const order_changed : boolean);                { invoke session update }
     function    Notify_CheckFilteredDelete    (const td  : TFRE_DB_TRANSFORMED_ORDERED_DATA ; const old_obj         : IFRE_DB_Object) : NativeInt; { invoke session update }
@@ -1007,21 +989,50 @@ begin
   result := Length(FResultDBOs)<>0;
 end;
 
-procedure TFRE_DB_SESSION_DC_RANGE.CheckRangeFilledFill;
-var FOBJArray :IFRE_DB_ObjectArray;
+procedure TFRE_DB_SESSION_DC_RANGE.FillRange(const compare_fill: boolean);
+var OBJArray :IFRE_DB_ObjectArray;
     i,j       : NativeInt;
 begin
-  if Length(FResultDBOs)=0 then
+  if not compare_fill then
     begin
-      FOBJArray := FMgr.GetFilterContainer.FOBJArray;
-      SetLength(FResultDBOs,FEndIndex-FStartIndex+1);
-      j         := 0;
-      for i := FStartIndex to FEndIndex do
-       begin
-         FResultDBOs[j] := FOBJArray[i].CloneToNewObject;
-         inc(j)
-       end;
+      if Length(FResultDBOs)=0 then
+        begin
+          OBJArray := FMgr.GetFilterContainer.FOBJArray;
+          SetLength(FResultDBOs,FEndIndex-FStartIndex+1);
+          j         := 0;
+          for i := FStartIndex to FEndIndex do
+           begin
+             FResultDBOs[j] := OBJArray[i].CloneToNewObject;
+             inc(j)
+           end;
+        end
+      else
+        raise EFRE_DB_Exception.Create(edb_ERROR,'range is filled, double fill not allowed');
     end
+  else
+    begin
+      if Length(FResultDBOsCompare)=0 then
+        begin
+          OBJArray := FMgr.GetFilterContainer.FOBJArray;
+          SetLength(FResultDBOsCompare,FEndIndex-FStartIndex+1);
+          j         := 0;
+          for i := FStartIndex to FEndIndex do
+            begin
+              if i<=high(OBJArray) then
+                begin
+                  FResultDBOsCompare[j] := OBJArray[i].CloneToNewObject;
+                  inc(j)
+                end
+              else
+                begin
+                  writeln('-------- Index OOB filterarray ->');
+                end;
+            end;
+          SetLength(FResultDBOsCompare,j);
+        end
+      else
+        raise EFRE_DB_Exception.Create(edb_ERROR,'compare range is filled, double fill not allowed');
+    end;
 end;
 
 function TFRE_DB_SESSION_DC_RANGE.GetAbsoluteIndexedObj(const abs_idx: NativeInt): IFRE_DB_Object;
@@ -1083,7 +1094,7 @@ begin
 
   if Length(FResultDBOs)=0 then
     begin
-      CheckRangeFilledFill;
+      FillRange();
     end
   else
     begin
@@ -1110,7 +1121,7 @@ begin
   FStartIndex := start_idx;
   if Length(FResultDBOs)=0 then
     begin
-      CheckRangeFilledFill;
+      FillRange();
     end
   else
     begin
@@ -1166,7 +1177,7 @@ begin
     raise EFRE_DB_Exception.create(edb_ERROR,'crop range from end invalid crop_idx [crop_idx = %d, old_end = %d]',[crop_idx,old_end]);
   if Length(FResultDBOs)=0 then
     begin
-      CheckRangeFilledFill;
+      FillRange();
     end
   else
     begin
@@ -1192,29 +1203,7 @@ begin
 end;
 
 procedure TFRE_DB_SESSION_DC_RANGE.RangeProcessFilterChangeBasedUpdates(const sessionid: TFRE_DB_SESSION_ID; const storeid: TFRE_DB_NameType; const orderkey: TFRE_DB_NameType; const AbsCount: NativeInt);
-var upo : IFRE_DB_Object;
-
-  function FinalTransFormUPO(const new_obj : IFRE_DB_Object):boolean;
-  var ses : TFRE_DB_UserSession;
-  begin
-    result := false;
-    if not GFRE_DBI.NetServ.FetchSessionByIdLocked(sessionid,ses) then
-      begin
-        GFRE_DBI.LogWarning(dblc_DBTDM,'> SESSION [%s] NOT FOUND ON UPDATE/INSERT QRY(?)',[sessionid]);
-        exit;
-      end
-    else
-      begin
-        try
-          upo := new_obj.CloneToNewObject;
-          abort;
-          //FBaseData.FBaseTransData.FDC.FinalRightTransform(ses,upo);
-          result := true;
-        finally
-          ses.UnlockSession;
-        end;
-      end;
-  end;
+var myupo : IFRE_DB_Object;
 
   procedure FullUpdate;
   var WorkArray   : IFRE_DB_ObjectArray;
@@ -1309,11 +1298,9 @@ var upo : IFRE_DB_Object;
      { Next send Updates }
      for i := 0 to high(UpdateArray) do
       begin
-        if FinalTransFormUPO(UpdateArray[i]) then
-          begin
-            update_pos:= FindUpdateObjectInWorkArray(UpdateArray[i]);
-            G_TCDM.CN_AddGridInplaceUpdate(sessionid,storeid,upo,update_pos,AbsCount); { updates in work array order, updated object must be in the work array }
-          end;
+        update_pos:= FindUpdateObjectInWorkArray(UpdateArray[i]);
+        myupo := UpdateArray[i].CloneToNewObject();
+        G_TCDM.CN_AddGridInplaceUpdate(sessionid,storeid,myupo,update_pos,AbsCount); { updates in work array order, updated object must be in the work array }
       end;
      SetLength(UpdateArray,0); { not needed anymore }
      { Next insert New Objects }
@@ -1337,10 +1324,8 @@ var upo : IFRE_DB_Object;
              key       := FResultDBOsCompare[i].Field(cFRE_DB_SYS_T_OBJ_TOTAL_ORDER).AsObject.Field(order_key).AsByteArr;
              idx       := FREDB_BinaryFindIndexInSorted(key,order_key,before,WorkArray,exists,nil);
              WorkArray := FREDB_InsertAtIdxToObjectArray(WorkArray,idx,FResultDBOsCompare[i],before>0); { find position, at_idx has the right position now }
-             if FinalTransFormUPO(FResultDBOsCompare[i]) then
-               begin
-                 G_TCDM.CN_AddGridInsertUpdate(sessionid,storeid,upo,idx,AbsCount);
-               end;
+             myupo     := FResultDBOsCompare[i].CloneToNewObject();
+             G_TCDM.CN_AddGridInsertUpdate(sessionid,storeid,myupo,idx,AbsCount);
              //if idx<=0 then
              //  begin
              //    if FinalTransFormUPO(FResultDBOsCompare[i]) then
@@ -1413,6 +1398,22 @@ var upo : IFRE_DB_Object;
 
 begin
   FullUpdate;
+end;
+
+procedure TFRE_DB_SESSION_DC_RANGE.RunCompareRanges;
+begin
+  FillRange(true);
+end;
+
+procedure TFRE_DB_SESSION_DC_RANGE.SwapcompareRange;
+var i : NativeInt;
+begin
+  writeln('COMPARE RANGES: BEfore >> ',high(FResultDBOs));
+  for i := 0 to high(FResultDBOs)-1 do
+    FResultDBOs[i].Finalize;
+  FResultDBOs := FResultDBOsCompare;
+  FResultDBOsCompare:=nil;
+  writeln('COMPARE RANGES: After >> ',high(FResultDBOs));
 end;
 
 
@@ -1710,7 +1711,7 @@ begin
        if not FRanges.InsertUInt64Key(newrange.FStartIndex,FREDB_ObjectToPtrUInt(newrange)) then
          raise EFRE_DB_Exception.Create(edb_INTERNAL,'internal rangemgr fault/range exists [%d %d]',[newrange.FStartIndex,newrange.FEndIndex]);
        range := newrange;
-       range.CheckRangeFilledFill;
+       range.FillRange();
     end
   else
   if (FStartInRangeID.Rid>-1) and (FEndInRangeID.Rid=-1) and (halt=true) and (FRangeAfterReqIx.Rid>-1) and (FEndAdjRangeID.Rid=-1) then { found a start range to extend and a range after with a gap in between }
@@ -1835,7 +1836,7 @@ var i                 : NativeInt;
       if (start_idx>range.FStartIndex) and (end_idx<range.FEndIndex) then { range split - cut off end, inser new end }
         begin
           newrange := TFRE_DB_SESSION_DC_RANGE.Create(self,end_idx+1,range.FEndIndex);
-          newrange.CheckRangeFilledFill;
+          newrange.FillRange();
           range.CropRangeFromEndTo(start_idx-1);
           if not FRanges.InsertUInt64Key(newrange.FStartIndex,FREDB_ObjectToPtrUInt(newrange)) then
             raise EFRE_DB_Exception.Create(edb_INTERNAL,'internal rangemgr range split exists [%d %d]',[newrange.FStartIndex,newrange.FEndIndex]);
@@ -1994,51 +1995,35 @@ begin
 end;
 
 procedure TFRE_DB_SESSION_DC_RANGE_MGR.ProcessFilterChangeBasedUpdates;
-var diff,d1,d2 : NativeInt;
-    upo        : IFRE_DB_Object;
+//var diff,d1,d2 : NativeInt;
+//    upo        : IFRE_DB_Object;
     //FBaseData  : TFRE_DB_TRANSFORMED_ORDERED_DATA;
   //var i : NativeInt;
 
-  procedure Iterate(const r : TFRE_DB_SESSION_DC_RANGE ; var halt:boolean);
+  procedure ProcessFilterChanges(const r : TFRE_DB_SESSION_DC_RANGE ; var halt:boolean);
   begin
     r.RangeProcessFilterChangeBasedUpdates(FRMGRKey.SessionID,GetStoreID,FRMFiltercont.OrderKey,FRMFiltercont.GetDataCount);
   end;
 
   procedure RunCompareRanges(const r : TFRE_DB_SESSION_DC_RANGE ; var halt:boolean);
   begin
-    //r.RunCompareRanges; // (FRMGRKey.SessionID,GetStoreID,FRMFiltercont.OrderKey,FRMFiltercont.GetDataCount);
+    r.RunCompareRanges; //// (FRMGRKey.SessionID,GetStoreID,FRMFiltercont.OrderKey,FRMFiltercont.GetDataCount);
+  end;
+
+  procedure SwapCompareRanges(const r : TFRE_DB_SESSION_DC_RANGE ; var halt:boolean);
+  begin
+    r.SwapcompareRange;
   end;
 
 begin
-  { the query is executed and the filter gets populated with 'new' dbos  }
-  //d2 := Length(FResultDBOs);
-  //d1 := Length(FResultDBOsCompare);
+  if FLastQryMaximalIndex=-1 then
+    raise EFRE_DB_Exception.Create(edb_INTERNAL,'last high index tag for the range mgr was not set(!)');
+  ForAllRanges(@RunCompareRanges);
+  ForAllRanges(@ProcessFilterChanges);
+  ForAllRanges(@SwapCompareRanges);
 
-  //FBaseData := GetBaseDataLocked; { Lock the Basedata, no one should do basedata updates now }
-  try
-   if FLastQryMaximalIndex=-1 then
-     raise EFRE_DB_Exception.Create(edb_INTERNAL,'last high index tag for the range mgr was not set(!)');
-   //if FLastQryMaximalIndex
-       ;
-   ForAllRanges(@RunCompareRanges);
-   ForAllRanges(@Iterate);
-  //FBaseData := GetBaseDataLocked;
-  //try
-    //if not assigned(FBaseData) then
-    //  raise EFRE_DB_Exception.Create(edb_ERROR,'compare run - no base data available');
-    //StartQueryRun(true);
-    //FBaseData.ExecuteBaseOrdered(nil,FSessionID,FRMFiltercont.FFilters,0,0,true,false); { a compare run implies a filter data update -> rerun filter}
-    //EndQueryRun(true);
-    //d1 := Length(FResultDBOsCompare);
-    //d2 := Length(FResultDBOs);
-    //
-  finally
-    //FBaseData.UnlockOrder;
-  end;
 
 //----
-
-
   //writeln('DEBUG___ ',diff);
   //for i:=0 to high(FResultDBOsCompare) do
   // begin
@@ -2053,7 +2038,7 @@ begin
   //   writeln('------');
   // end;
 
-  diff := d1 - d2;
+  //diff := d1 - d2;
   //if diff>0 then
   //  Inserted;
   //if diff<0 then
@@ -2064,7 +2049,7 @@ begin
  { FullUpdate; }
 
   { update query to comparequery }
-{  SwapCompareQueryQry;}
+   //SwapCompareQueryQry;
 end;
 
 function TFRE_DB_SESSION_DC_RANGE_MGR.GetRangemangerKey: TFRE_DB_SESSION_DC_RANGE_MGR_KEY;
@@ -2217,63 +2202,6 @@ begin
     //ReEvalFilterStartVals;
 end;
 
-
-{ TFRE_DB_SESSION_UPO }
-
-function TFRE_DB_SESSION_UPO.GetUpdateStore(const store_id: shortstring): TFRE_DB_UPDATE_STORE_DESC;
-begin
-  result :=  FStoreList.Find(store_id) as TFRE_DB_UPDATE_STORE_DESC;
-  if not Assigned(result) then
-    begin
-      result := TFRE_DB_UPDATE_STORE_DESC.create.Describe(store_id);
-      FStoreList.Add(store_id,result);
-    end;
-end;
-
-constructor TFRE_DB_SESSION_UPO.Create(const session_id: TFRE_DB_NameType);
-begin
-  FStoreList := TFPHashObjectList.Create(false);
-  FSessid    := session_id;
-end;
-
-destructor TFRE_DB_SESSION_UPO.Destroy;
-begin
-  FStoreList.Free;
-  inherited Destroy;
-end;
-
-procedure TFRE_DB_SESSION_UPO.AddStoreUpdate(const store_id: TFRE_DB_NameType; const upo: IFRE_DB_Object; const position, abscount: NativeInt);
-var update_st : TFRE_DB_UPDATE_STORE_DESC;
-begin
-  update_st := GetUpdateStore(store_id);
-  update_st.addUpdatedEntry(upo,position,abscount);
-end;
-
-procedure TFRE_DB_SESSION_UPO.AddStoreInsert(const store_id: TFRE_DB_NameType; const upo: IFRE_DB_Object; const position, abscount: NativeInt);
-var update_st : TFRE_DB_UPDATE_STORE_DESC;
-begin
-  update_st := GetUpdateStore(store_id);
-  update_st.addNewEntry(upo,position,abscount);
-end;
-
-procedure TFRE_DB_SESSION_UPO.AddStoreDelete(const store_id: TFRE_DB_NameType; const id: TFRE_DB_String; const position, abscount: NativeInt);
-var update_st : TFRE_DB_UPDATE_STORE_DESC;
-begin
-  update_st := GetUpdateStore(store_id);
-  update_st.addDeletedEntry(id,position,abscount);
-end;
-
-procedure TFRE_DB_SESSION_UPO.DispatchAllNotifications;
-var i  : NativeInt;
-    ct : TFRE_DB_CONTENT_DESC;
-begin
-  for i := 0 to FStoreList.Count-1 do
-    begin
-      ct := FStoreList.Items[i] as TFRE_DB_CONTENT_DESC;
-      GFRE_DBI.NetServ.SendDelegatedContentToClient(FSessid,ct);
-    end;
-end;
-
 { TFRE_DB_TRANSDATA_CHANGE_NOTIFIER }
 
 function TFRE_DB_TRANSDATA_CHANGE_NOTIFIER.GetSessionUPO(const sessionid : TFRE_DB_NameType): TFRE_DB_SESSION_UPO;
@@ -2290,11 +2218,6 @@ constructor TFRE_DB_TRANSDATA_CHANGE_NOTIFIER.Create(const key: TFRE_DB_TransSte
 begin
   FSessionUpdateList := TFPHashObjectList.Create(true);
   FKey               := key;
-end;
-
-destructor TFRE_DB_TRANSDATA_CHANGE_NOTIFIER.Destroy;
-begin
-  FSessionUpdateList.free;
 end;
 
 procedure TFRE_DB_TRANSDATA_CHANGE_NOTIFIER.AddDirectSessionUpdateEntry(const update_dbo: IFRE_DB_Object);
@@ -2328,7 +2251,7 @@ begin
   for i  := 0 to FSessionUpdateList.Count-1 do
    begin
      supo := FSessionUpdateList.Items[i] as TFRE_DB_SESSION_UPO;
-     supo.DispatchAllNotifications;
+     supo.cs_SendUpdatesToSession;
    end;
 end;
 
@@ -3538,6 +3461,7 @@ begin
       FOBJArray := FREDB_InsertAtIdxToObjectArray(FOBJArray,ia_idx,new_obj,before>0); { ia_idx gets adjusted }
       result := ia_idx;
       inc(FCnt);
+      AdjustLength;
     end;
 end;
 
@@ -3719,6 +3643,7 @@ begin
         begin
           old_idx := Notify_CheckFilteredDelete(td,old_obj);
           new_idx := Notify_CheckFilteredInsert(td,new_obj);
+          //Checkintegrity;
         end
       else
         begin
@@ -3732,6 +3657,7 @@ begin
           else
             begin
               FOBJArray[old_idx] := new_obj;
+              //Checkintegrity;
               //G_TCDM.UpdateObjectInFilterKey(td,self,new_obj,old_idx);  { in place update }
             end;
         end;
@@ -3740,6 +3666,7 @@ begin
     begin { Update object does not pass the filters anymore -> remove it}
       GFRE_DBI.LogDebug(dblc_DBTDM,'     >FILTER REJECT UPDATE OBJECT [%s] IN ORDER/FILTER [%s]',[old_obj.UID_String,GetCacheDataKey.GetFullKeyString]);
       old_idx := UnconditionalRemoveOldObject(td,old_obj,true); { ignore non existing objects ...}
+      //Checkintegrity;
     end;
 end;
 
@@ -3752,6 +3679,7 @@ begin
     begin { old object is potentially in the client query present }
       GFRE_DBI.LogDebug(dblc_DBTDM,'     >FILTER MATCH DELETE OBJECT [%s] IN ORDER/FILTER [%s]',[old_obj.UID_String,GetCacheDataKey.GetFullKeyString]);
       result := UnconditionalRemoveOldObject(td,old_obj,false);
+      //Checkintegrity;
     end
   else
     begin
@@ -3769,6 +3697,7 @@ begin
     begin { old object is potentially in the client query present }
       GFRE_DBI.LogDebug(dblc_DBTDM,'     >FILTER MATCH INSERT OBJECT [%s] IN ORDER/FILTER [%s]',[new_obj.UID_String,GetCacheDataKey.GetFullKeyString]);
       result := UnconditionalInsertNewObject(td,new_obj);
+      //Checkintegrity;
     end
   else
     begin
@@ -4855,8 +4784,12 @@ procedure TFRE_DB_QUERY.WorkDone_WIF;
 var ses : TFRE_DB_UserSession;
 begin { In context of Netserver Channel Group }
   if GFRE_DBI.NetServ.FetchSessionByIdLocked(FQueryId.SessionID,ses) then
-    if not ses.DispatchCoroutine(TFRE_APSC_CoRoutine(@Ses.COR_AnswerGridData),self) then
-      Free;
+    try
+      if not ses.DispatchCoroutine(TFRE_APSC_CoRoutine(@Ses.COR_AnswerGridData),self) then
+        Free;
+    finally
+      ses.UnlockSession;
+    end;
 end;
 
 procedure TFRE_DB_QUERY.ErrorOccurred_WIF(const ec: NativeInt; const em: string);
@@ -4875,12 +4808,8 @@ begin
 end;
 
 procedure TFRE_DB_TRANFORMED_DATA.TransformSingleInsert(const in_object: IFRE_DB_Object; const rl_ins: boolean; const parentpath: TFRE_DB_String; const parent_tr_obj: IFRE_DB_Object; const transkey: TFRE_DB_TransStepId);
-var rec_cnt:NativeInt;
-    upconn  : TFRE_DB_CONNECTION;
 begin
- //upconn     := connection.Implementor_HC as TFRE_DB_CONNECTION;
- // MyTransForm(upconn,in_object,transdata,rec_cnt,lazy_child_expand,trans_SingleInsert,-1,rl_ins,parentpath,parent_tr_obj,transkey);
-  abort;
+  MyTransForm(-1,-1,false,trans_SingleInsert,-1,false,'',parent_tr_obj,transkey,-1,in_object);
 end;
 
 procedure TFRE_DB_TRANFORMED_DATA.TransformFetchAll;
@@ -5103,7 +5032,13 @@ begin
       end;
     trans_SingleInsert:
       begin
-       abort;
+        ino_up_class := uppercase(single_in_object.Implementor_HC.ClassName);
+        tr_obj := FTransform.TransformInOut(FConnection,single_in_object);
+        SetSpecialFields(tr_obj,single_in_object);
+        SetParentPath(parentpath);
+        SetInternalFields(tr_obj,single_in_object);
+        HandleInsertTransformedObject(tr_obj,in_parent_tr_obj);
+        {OLD CODE}
         //tr_obj := FTransform.TransformInOut(upconn,in_object);
         //if IncludesChildData then
         //  SetSpecialFields(tr_obj,in_object); { do not transfrom children recursive, these will come as single add updates, when inserted in a transaction }
@@ -5126,7 +5061,7 @@ begin
               tr_obj.Field(cFRE_DB_CLN_CHILD_FLD).AsString := cFRE_DB_CLN_CHILD_FLG;
           end;
         HandleUpdateTransformedObject(tr_obj,update_idx);
-        { do not handle child updates now, the will get handled on field update event of the parent }
+        { do not handle child updates now, they will get handled on field update event of the parent }
       end;
   end;
 end;
@@ -5751,7 +5686,7 @@ begin
   ForAllQueryRangeMgrs(@HandleTaggedQueries);
   GFRE_DBI.LogDebug(dblc_DBTDM,'<- NOTIFY : END QRY TAG SCAN [%s]',[FCurrentNotify.TransKey]);
 
-  //FCurrentNotify.NotifyAll;
+  FCurrentNotify.NotifyAll;
 
   FreeAndNil(FCurrentNotify);
 end;

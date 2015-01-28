@@ -8540,11 +8540,10 @@ var
     qrydef          : TFRE_DB_QUERY_DEF;
 
 begin
-  writeln('----------------------------');
-  writeln('GGD----------------------------');
-  writeln(input.DumpToString );
-  writeln('----------------------------');
-  writeln('----------------------------');
+  //writeln('----------------------------');
+  //writeln('GGD----------------------------');
+  //writeln(input.DumpToString );
+  //writeln('----------------------------');
   result := GFRE_DB_SUPPRESS_SYNC_ANSWER;
   try
     MustBeInitialized;
@@ -11678,10 +11677,7 @@ end;
 function TFRE_DB_CONNECTION.Delete(const ouid: TFRE_DB_GUID): TFRE_DB_Errortype;
 begin
   try
-    if FSysConnection.Exists(oUID) then
-      Result:=FSysConnection.Delete(GetUserUIDP,ouid)
-    else
-      Result:=inherited Delete(GetUserUIDP,ouid);
+    Result:=inherited Delete(GetUserUIDP,ouid);
   except on e:exception do
       result := FREDB_TransformException2ec(e,{$I %FILE%}+'@'+{$I %LINE%});
   end;
@@ -11829,7 +11825,7 @@ end;
 function TFRE_DB_BASE_CONNECTION.Exists(const ouid: TFRE_DB_GUID): boolean;
 begin
   _ConnectCheck;
-  FPersistance_Layer.ObjectExists(ouid);
+  result := FPersistance_Layer.ObjectExists(ouid);
 end;
 
 function TFRE_DB_BASE_CONNECTION.Delete(const user_context: PFRE_DB_GUID; const ouid: TFRE_DB_GUID): TFRE_DB_Errortype;
@@ -14403,7 +14399,7 @@ begin
         exit;
       end;
       if FMediatorExtention is TFRE_DB_SUPPRESS_ANSWER_DESC then begin
-        writeln('>> WARNING SUPRESS ANSWER DESCRIPTION :::: FREE_REAL & MEDIATOR EXTENSION: ',ClassName,'  ',FMediatorExtention.ClassName);
+        //writeln('>> WARNING SUPRESS ANSWER DESCRIPTION :::: FREE_REAL & MEDIATOR EXTENSION: ',ClassName,'  ',FMediatorExtention.ClassName);
         FParentDBO := nil;
         //THink about PARENTED NIL SUPRESS ANSWER DESCRIPTIONS !!!!
         exit;

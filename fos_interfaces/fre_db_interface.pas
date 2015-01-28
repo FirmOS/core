@@ -2575,6 +2575,31 @@ end;
     property  windowCaption: TFRE_DB_String read GetWindowCaption write SetWindowCaption;
   end;
 
+  { TFRE_DB_UPDATE_STORE_DESC }
+
+  TFRE_DB_UPDATE_STORE_DESC = class(TFRE_DB_CONTENT_DESC)
+  public
+    //@ Describes an update of a store.
+    function  Describe        (const storeId:String):TFRE_DB_UPDATE_STORE_DESC;
+    //@ Adds an updated entry and moves it to a new Position.
+    procedure addUpdatedEntry (const entry: IFRE_DB_Object ; const position: Int64 ; const absolutecount: Int64);
+    //@ Adds the id of a deleted entry.
+    procedure addDeletedEntry (const entryId: String; const position: Int64 ; const absolutecount: Int64);
+    //@ Adds a new entry.
+    //@ parentId is only useful for tree grids. If not parentId is given the new item is added as root item.
+    //@ use nextItemId = '' to insert the new item at the end of the query.
+    procedure addNewEntry     (const entry: IFRE_DB_Object; const position: Int64 ; const absolutecount: Int64);
+    //@ Sets the new total count.
+    procedure setTotalCount   (const count: Integer);
+
+    procedure ForAllUpdated   (const obcb : IFRE_DB_Obj_Iterator);
+    procedure ForAllInserted  (const obcb : IFRE_DB_Obj_Iterator);
+
+    function  GetStoreID      : TFRE_DB_NameType;
+    function  hasChanges      : Boolean;
+  end;
+
+
   { TFRE_DB_NIL_DESC }
 
   //@ Describes "No Reply". E.g. User answers no to a confirm deletion dialog.
@@ -3115,10 +3140,21 @@ end;
     procedure Execute(const session : TFRE_DB_Usersession);virtual;abstract;
   end;
 
-  TFRE_DB_UC_Transformed_Update=class(TFRE_DB_Usersession_COR)
+  { TFRE_DB_SESSION_UPO }
+
+  TFRE_DB_SESSION_UPO = class
+  private
+     FStoreList : TFPHashObjectList;
+     FSessid    : TFRE_DB_SESSION_ID;
+     function   GetUpdateStore            (const store_id: shortstring): TFRE_DB_UPDATE_STORE_DESC;
   public
-    Content : TFRE_DB_CONTENT_DESC;
-    //procedure Execute(const session: TFRE_DB_Usersession); override;
+     constructor Create                   (const session_id : TFRE_DB_NameType);
+     destructor  Destroy                  ; override;
+     procedure   AddStoreUpdate           (const store_id: TFRE_DB_NameType; const upo: IFRE_DB_Object ; const position,abscount : NativeInt);
+     procedure   AddStoreInsert           (const store_id: TFRE_DB_NameType; const upo: IFRE_DB_Object ; const position,abscount : NativeInt);
+     procedure   AddStoreDelete           (const store_id: TFRE_DB_NameType; const id: TFRE_DB_String  ; const position,abscount : NativeInt);
+     procedure   DispatchAllNotifications (const session:TFRE_DB_UserSession);
+     procedure   cs_SendUpdatesToSession  ;
   end;
 
   TFRE_DB_UserSession = class(TObject,IFRE_DB_Usersession,IFRE_DB_DBChangedNotificationSession)
@@ -3283,6 +3319,9 @@ end;
     procedure   COR_SendContentOnBehalf    (const data : Pointer);
     procedure   COR_ExecuteSessionCmd      (const data : Pointer);
     procedure   COR_AnswerGridData         (const qry  : TFRE_DB_QUERY_BASE);
+    procedure   COR_SendStoreUpdates       (const data : TFRE_DB_SESSION_UPO);
+    procedure   FinalRightTransform        (const transformed_filtered_cloned_obj:IFRE_DB_Object ; const frt : IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION ; const langres : TFRE_DB_StringArray);
+
 
     function    DispatchCoroutine          (const coroutine : TFRE_APSC_CoRoutine;const data : Pointer):boolean; // Call a Coroutine in this sessions thread context
 
@@ -4672,6 +4711,163 @@ type
 
 const
   cG_Digits: array[0..15] of ansichar = '0123456789abcdef';
+
+{ TFRE_DB_SESSION_UPO }
+
+function TFRE_DB_SESSION_UPO.GetUpdateStore(const store_id: shortstring): TFRE_DB_UPDATE_STORE_DESC;
+begin
+  result :=  FStoreList.Find(store_id) as TFRE_DB_UPDATE_STORE_DESC;
+  if not Assigned(result) then
+    begin
+      result := TFRE_DB_UPDATE_STORE_DESC.create.Describe(store_id);
+      FStoreList.Add(store_id,result);
+    end;
+end;
+
+constructor TFRE_DB_SESSION_UPO.Create(const session_id: TFRE_DB_NameType);
+begin
+  FStoreList := TFPHashObjectList.Create(false);
+  FSessid    := session_id;
+end;
+
+destructor TFRE_DB_SESSION_UPO.Destroy;
+begin
+  FStoreList.Free;
+  inherited Destroy;
+end;
+
+procedure TFRE_DB_SESSION_UPO.AddStoreUpdate(const store_id: TFRE_DB_NameType; const upo: IFRE_DB_Object; const position, abscount: NativeInt);
+var update_st : TFRE_DB_UPDATE_STORE_DESC;
+begin
+  update_st := GetUpdateStore(store_id);
+  update_st.addUpdatedEntry(upo,position,abscount);
+end;
+
+procedure TFRE_DB_SESSION_UPO.AddStoreInsert(const store_id: TFRE_DB_NameType; const upo: IFRE_DB_Object; const position, abscount: NativeInt);
+var update_st : TFRE_DB_UPDATE_STORE_DESC;
+begin
+  update_st := GetUpdateStore(store_id);
+  update_st.addNewEntry(upo,position,abscount);
+end;
+
+procedure TFRE_DB_SESSION_UPO.AddStoreDelete(const store_id: TFRE_DB_NameType; const id: TFRE_DB_String; const position, abscount: NativeInt);
+var update_st : TFRE_DB_UPDATE_STORE_DESC;
+begin
+  update_st := GetUpdateStore(store_id);
+  update_st.addDeletedEntry(id,position,abscount);
+end;
+
+procedure TFRE_DB_SESSION_UPO.DispatchAllNotifications(const session: TFRE_DB_UserSession);
+var i    : NativeInt;
+    ct   : TFRE_DB_UPDATE_STORE_DESC;
+    stid : TFRE_DB_NameType;
+    frt  : IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION;
+    lang : TFRE_DB_StringArray;
+
+    procedure FinalTransform(const obj : IFRE_DB_Object);
+    begin
+      session.FinalRightTransform(obj,frt,lang);
+    end;
+
+begin
+  for i := 0 to FStoreList.Count-1 do
+    begin
+      ct   := FStoreList.Items[i] as TFRE_DB_UPDATE_STORE_DESC;
+      stid := ct.GetStoreID;
+      session.FetchDerivedCollection(stid).GetDeriveTransformation.GetFinalRightTransformFunction(frt,lang);
+      ct.ForAllUpdated(@FinalTransform);
+      ct.ForAllInserted(@FinalTransform);
+      writeln('HH>>> FINAL,FINAL UPDATE DESC ',ct.DumpToString);
+      session.SendServerClientRequest(ct);
+    end;
+end;
+
+procedure TFRE_DB_SESSION_UPO.cs_SendUpdatesToSession;
+var ses : TFRE_DB_UserSession;
+    res : boolean;
+begin { In context of Netserver Channel Group }
+  if GFRE_DBI.NetServ.FetchSessionByIdLocked(FSessid,ses) then
+    try
+      res := ses.DispatchCoroutine(TFRE_APSC_CoRoutine(@Ses.COR_SendStoreUpdates),self);
+      if not res then
+        begin
+          Free;
+        end;
+    finally
+      ses.UnlockSession;
+    end;
+end;
+
+{ TFRE_DB_UPDATE_STORE_DESC }
+
+function TFRE_DB_UPDATE_STORE_DESC.Describe(const storeId: String): TFRE_DB_UPDATE_STORE_DESC;
+begin
+  Field('storeId').AsString:=storeId;
+  Result:=Self;
+end;
+
+procedure TFRE_DB_UPDATE_STORE_DESC.addUpdatedEntry(const entry: IFRE_DB_Object; const position: Int64; const absolutecount: Int64);
+var
+  obj: IFRE_DB_Object;
+begin
+  obj:=GFRE_DBI.NewObject;
+  obj.Field('item').AddObject(entry.CloneToNewObject());
+  obj.Field('pos').AsInt64    := position;
+  obj.Field('total').AsInt32:=absolutecount;
+  Field('updated').AddObject(obj);
+end;
+
+procedure TFRE_DB_UPDATE_STORE_DESC.addDeletedEntry(const entryId: String; const position: Int64; const absolutecount: Int64);
+var
+  obj: IFRE_DB_Object;
+begin
+  obj:=GFRE_DBI.NewObject;
+  obj.Field('itemid').AddString(entryId);
+  obj.Field('pos').AsInt64:=position;
+  obj.Field('total').AsInt32:=absolutecount;
+  Field('deleted').AddObject(obj);
+end;
+
+procedure TFRE_DB_UPDATE_STORE_DESC.addNewEntry(const entry: IFRE_DB_Object; const position: Int64; const absolutecount: Int64);
+var
+  obj: IFRE_DB_Object;
+begin
+  obj:=GFRE_DBI.NewObject;
+  //obj.Field('revid').AsString:=nextItemId;
+  obj.Field('item').AsObject:=entry.CloneToNewObject();
+  obj.Field('pos').AsInt64:=position;
+  obj.Field('total').AsInt32:=absolutecount;
+  Field('new').AddObject(obj);
+end;
+
+procedure TFRE_DB_UPDATE_STORE_DESC.setTotalCount(const count: Integer);
+begin
+  Field('total').AsInt32:=count;
+end;
+
+procedure TFRE_DB_UPDATE_STORE_DESC.ForAllUpdated(const obcb: IFRE_DB_Obj_Iterator);
+var fld :IFRE_DB_Field;
+begin
+ if FieldOnlyExisting('updated',fld) then
+   fld.AsObject.ForAllObjects(obcb);
+end;
+
+procedure TFRE_DB_UPDATE_STORE_DESC.ForAllInserted(const obcb: IFRE_DB_Obj_Iterator);
+var fld :IFRE_DB_Field;
+begin
+  if FieldOnlyExisting('new',fld) then
+    fld.AsObject.ForAllObjects(obcb);
+end;
+
+function TFRE_DB_UPDATE_STORE_DESC.GetStoreID: TFRE_DB_NameType;
+begin
+  result := Field('storeid').AsString;
+end;
+
+function TFRE_DB_UPDATE_STORE_DESC.hasChanges: Boolean;
+begin
+  Result:=(Field('new').ValueCount + Field('deleted').ValueCount + Field('updated').ValueCount)>0;
+end;
 
 { TFRE_DB_SESSION_DC_RANGE_MGR_KEY }
 
@@ -7608,48 +7804,16 @@ var
     langr   : TFRE_DB_StringArray;
     resdata : IFRE_DB_ObjectArray;
 
-    procedure  FinalRightTransform(const transformed_filtered_cloned_obj:IFRE_DB_Object);
-    var conn : IFRE_DB_CONNECTION;
-
-        procedure DoPreSend(const plugin : TFRE_DB_OBJECT_PLUGIN_BASE);
-        begin
-          if plugin.EnhancesGridRenderingPreClientSend then
-            plugin.TransformGridEntryClientSend(conn.sys.GetCurrentUserTokenRef,transformed_filtered_cloned_obj,GetSessionGlobalData,langr);
-        end;
-
-    begin
-      if assigned(frt) then
-        begin
-          try
-            conn := GetDBConnection;
-            frt(conn.sys.GetCurrentUserTokenRef,transformed_filtered_cloned_obj,GetSessionGlobalData,langr);
-          except
-            on e:exception do
-              begin
-                GFRE_DBI.LogError(dblc_DB,'Custom transform failed %s',[e.Message]);
-              end;
-          end;
-        end;
-      transformed_filtered_cloned_obj.ForAllPlugins(@DoPreSend);
-    end;
-
     function GetGridDataDescription: TFRE_DB_STORE_DATA_DESC;
     var
        cnt,i : NativeInt;
-
-      procedure GetData(const transformed_filtered_cloned_obj:IFRE_DB_Object);
-      begin
-        FinalRightTransform(transformed_filtered_cloned_obj);
-        TFRE_DB_STORE_DATA_DESC(result).addEntry(transformed_filtered_cloned_obj);
-      end;
-
     begin
       cnt := 0;
       result := TFRE_DB_STORE_DATA_DESC.create;
       cnt := Length(resdata);  //query.ExecuteQuery(@GetData,self);
       for i :=0 to cnt-1 do
         begin
-          FinalRightTransform(resdata[i]);
+          FinalRightTransform(resdata[i],frt,langr);
           result.addEntry(resdata[i]);
         end;
        cnt := qry.GetTotalCount;
@@ -7663,6 +7827,37 @@ begin
   resdata := qry.GetResultData;
   SendServerClientAnswer(GetGridDataDescription,qry.GetReqID);
   qry.free;
+end;
+
+procedure TFRE_DB_UserSession.COR_SendStoreUpdates(const data: TFRE_DB_SESSION_UPO);
+begin
+  writeln('COR_SUPO');
+  data.DispatchAllNotifications(self);
+end;
+
+procedure TFRE_DB_UserSession.FinalRightTransform(const transformed_filtered_cloned_obj: IFRE_DB_Object; const frt: IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION; const langres: TFRE_DB_StringArray);
+var conn : IFRE_DB_CONNECTION;
+
+    procedure DoPreSend(const plugin : TFRE_DB_OBJECT_PLUGIN_BASE);
+    begin
+      if plugin.EnhancesGridRenderingPreClientSend then
+        plugin.TransformGridEntryClientSend(conn.sys.GetCurrentUserTokenRef,transformed_filtered_cloned_obj,GetSessionGlobalData,langres);
+    end;
+
+begin
+  if assigned(frt) then
+    begin
+      try
+        conn := GetDBConnection;
+        frt(conn.sys.GetCurrentUserTokenRef,transformed_filtered_cloned_obj,GetSessionGlobalData,langres);
+      except
+        on e:exception do
+          begin
+            GFRE_DBI.LogError(dblc_DB,'Custom transform failed %s',[e.Message]);
+          end;
+      end;
+    end;
+  transformed_filtered_cloned_obj.ForAllPlugins(@DoPreSend);
 end;
 
 function TFRE_DB_UserSession.DispatchCoroutine(const coroutine: TFRE_APSC_CoRoutine; const data: Pointer):boolean;

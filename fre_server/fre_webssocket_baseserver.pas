@@ -1285,8 +1285,8 @@ var
     frangetype      : string;
     frangestart     : string;
     frangeend       : string;
-    foffset         : NativeUInt;
-    fend            : NativeUInt;
+    foffset         : NativeInt;
+    fend            : NativeInt;
 
   begin
       if fpstat(fn,info)<>0 then

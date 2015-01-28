@@ -1932,7 +1932,7 @@ var dnsres     : CInt;
     end;
 
 begin
-  writeln('*** -> GENEVENT ',FId,' ', what);
+  //writeln('*** -> GENEVENT ',FId,' ', what);
   if (what and BEV_EVENT_EOF)>0 then
     begin
       LogDebug('READ EOF (CLOSE) on CHANNEL '+_GetDebugID+' FLAGS '+inttostr(what),[]);

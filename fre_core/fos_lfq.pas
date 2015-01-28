@@ -42,9 +42,10 @@ interface
 uses SysUtils,Classes,FOS_INTERLOCKED,FOS_TOOL_INTERFACES;
 
 type
+
  RFOS_QNode=record
-  data:Pointer;
-  next_node:RFOS_TAGPOINTER;
+   next_node : RFOS_TAGPOINTER; { make shure that the TAGPOINTER is first in structure and thus aligned }
+   data      : Pointer;
  end;
 
  PFOS_QNode=^RFOS_QNode;
