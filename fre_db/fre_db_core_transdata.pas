@@ -4919,9 +4919,7 @@ var
         in_chld_obj : IFRE_DB_Object;
         in_ch_class : ShortString;
         stop        : boolean;
-        name        : string;
     begin
-     name := parent_tr_obj.Field('objname').asstring;
      refd_uids     := FConnection.GetReferencesNoRightCheck(in_uid,FParentLinksChild,FParentChildScheme,FParentChildField);
      len_chld := 0;
      if length(refd_uids)>0 then
