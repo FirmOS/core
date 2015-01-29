@@ -2246,7 +2246,7 @@ end;
     procedure  cs_RemoveQueryRange          (const qry_id: TFRE_DB_CACHE_DATA_KEY; const start_idx,end_index : NativeInt); virtual; abstract;
     procedure  cs_DropAllQueryRanges        (const qry_id: TFRE_DB_CACHE_DATA_KEY;const whole_session,all_filterings : boolean); virtual; abstract; { is a sessionid only }
     procedure  cs_InboundNotificationBlock  (const dbname: TFRE_DB_NameType    ; const block : IFRE_DB_Object); virtual; abstract;
-    procedure  cs_InvokeQry                 (const qry: TFRE_DB_QUERY_BASE     ; const transform: IFRE_DB_SIMPLE_TRANSFORM; const sessionid: TFRE_DB_SESSION_ID ; const return_cg: IFRE_APSC_CHANNEL_GROUP;const ReqID : Qword); virtual ; abstract;
+    procedure  cs_InvokeQry                 (const qry: TFRE_DB_QUERY_BASE     ; const transform: IFRE_DB_SIMPLE_TRANSFORM; const sessionid: TFRE_DB_SESSION_ID ; const return_cg: IFRE_APSC_CHANNEL_GROUP;const ReqID : Qword ; const sync_event : IFOS_E); virtual ; abstract;
   end;
 
   { TFRE_DB_NOTE }
@@ -3099,6 +3099,7 @@ end;
     function    GetDomainUID                 : TFRE_DB_GUID;        { domain id of logged in user }
     function    GetDomainUID_String          : TFRE_DB_GUID_String; { domain id as string of logged in user }
     procedure   InboundNotificationBlock     (const block: IFRE_DB_Object); { Here comes an Inbound Notification block from the network/pl layer}
+    function    GetSyncWaitEvent             (out e:IFOS_E):boolean;
   end;
 
   TFRE_DB_RemoteReqSpec      = record
@@ -3216,6 +3217,7 @@ end;
     FBoundMachineUid      : TFRE_DB_Guid;
     FBoundMachineMac,
     FBoundMachineName     : TFRE_DB_String;
+    FSyncWaitE            : IFOS_E;
 
     procedure     SetOnWorkCommands       (AValue: TNotifyEvent);
     procedure     _FixupDCName           (var dcname:TFRE_DB_NameType);
@@ -3256,6 +3258,9 @@ end;
     class
      procedure  CLS_ForceInvalidSessionReload (rac :IFRE_DB_COMMAND_REQUEST_ANSWER_SC ; const cmd :IFRE_DB_COMMAND); // Here Comes the command in ..
     function    InternalSessInvokeMethod (const class_name,method_name:string;const uid_path:TFRE_DB_GUIDArray;var input:IFRE_DB_Object):IFRE_DB_Object;
+    function    SetupSyncWaitDataEvent   : IFOS_E;
+    function    GetSyncWaitEvent         (out e:IFOS_E):boolean;
+    procedure   FinalizeSyncWaitEvent    ;
     function    InternalSessInvokeMethod (const app:IFRE_DB_APPLICATION;const method_name:string;const input:IFRE_DB_Object):IFRE_DB_Object;
     function    Promote                  (const user_name,password:TFRE_DB_String;var promotion_status:TFRE_DB_String; force_new_session_data : boolean ; const session_takeover : boolean ; const auto_promote : boolean ; const allowed_user_classes : array of TFRE_DB_String) : TFRE_DB_PromoteResult; // Promote USER to another USER
     procedure   COR_InitiateTakeOver     (const data : Pointer); // In old session binding
@@ -3321,6 +3326,7 @@ end;
 
     procedure   COR_SendContentOnBehalf    (const data : Pointer);
     procedure   COR_ExecuteSessionCmd      (const data : Pointer);
+    function    ProcessQryToDescription    (const qry  : TFRE_DB_QUERY_BASE):TFRE_DB_STORE_DATA_DESC;
     procedure   COR_AnswerGridData         (const qry  : TFRE_DB_QUERY_BASE);
     procedure   COR_SendStoreUpdates       (const data : TFRE_DB_SESSION_UPO);
     procedure   FinalRightTransform        (const transformed_filtered_cloned_obj:IFRE_DB_Object ; const frt : IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION ; const langres : TFRE_DB_StringArray);
@@ -7030,7 +7036,9 @@ end;
 
 
 function TFRE_DB_UserSession.InternalSessInvokeMethod(const class_name, method_name: string; const uid_path: TFRE_DB_GUIDArray; var input: IFRE_DB_Object): IFRE_DB_Object;
-var st,et : QWord;
+var st,et    : QWord;
+    SYNCWait : IFOS_E;
+    syncres  : TObject;
 begin
   st := GFRE_BT.Get_Ticks_ms;
   GFRE_DBI.LogDebug(dblc_SERVER,'>>SESSION/INTERNAL/DISPATCH METHOD %s.%s(%s)  SID=[%s]',[class_name,method_name,GFRE_DBI.GuidArray2SString(uid_path),FSessionID]);
@@ -7040,7 +7048,22 @@ begin
     GFRE_DBI.LogDebug(dblc_SERVER_DATA,'%s',[input.DumpToString(2)]);
   end;
   try
+    SYNCWait := SetupSyncWaitDataEvent;
     result := FDBConnection.InvokeMethod(class_name,method_name,uid_path,input,self);
+    if result.Implementor_HC is TFRE_DB_SUPPRESS_ANSWER_DESC then
+      begin
+        SYNCWait.WaitFor;
+        syncres := TObject(SYNCWait.GetData);
+        if syncres is TFRE_DB_QUERY_BASE then
+          begin
+            result := ProcessQryToDescription(syncres as TFRE_DB_QUERY_BASE);
+          end;
+        FinalizeSyncWaitEvent;
+      end
+    else
+      begin
+        FinalizeSyncWaitEvent;
+      end;
     if assigned(result) then begin
       GFRE_DBI.LogDebug(dblc_SERVER,'OUTPUT:');
       GFRE_DBI.LogDebug(dblc_SERVER,'%s',[result.DumpToString(2)]);
@@ -7055,6 +7078,33 @@ begin
   //GFRE_DBI.LogDebug(dblc_SERVER,'<<SESSION/INTERNAL/DISPATCH METHOD %s.%s(%s) SID=[%s]',[class_name,method_name,GFRE_DBI.GuidArray2SString(uid_path),FSessionID]);
   et := GFRE_BT.Get_Ticks_ms;
   GFRE_DBI.LogDebug(dblc_SERVER,'>>(%4.4d ms)<<SESSION/INTERNAL/DISPATCH METHOD %s.%s(%s) SID=[%s]',[et-st,class_name,method_name,GFRE_DBI.GuidArray2SString(uid_path),FSessionID]);
+end;
+
+function TFRE_DB_UserSession.SetupSyncWaitDataEvent: IFOS_E;
+begin
+  if assigned(FSyncWaitE) then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'double syncwait try - failure');
+  GFRE_TF.Get_Event(FSyncWaitE);
+end;
+
+function TFRE_DB_UserSession.GetSyncWaitEvent(out e: IFOS_E): boolean;
+begin
+  if assigned(FSyncWaitE) then
+    begin
+      e      := FSyncWaitE;
+      result := true;
+    end
+  else
+    begin
+      e      := nil;
+      result := false;
+    end;
+end;
+
+procedure TFRE_DB_UserSession.FinalizeSyncWaitEvent;
+begin
+  FSyncWaitE.Finalize;
+  FSyncWaitE := nil;
 end;
 
 function TFRE_DB_UserSession.InternalSessInvokeMethod(const app: IFRE_DB_APPLICATION; const method_name: string; const input: IFRE_DB_Object): IFRE_DB_Object;
@@ -7821,7 +7871,7 @@ begin
   end;
 end;
 
-procedure TFRE_DB_UserSession.COR_AnswerGridData(const qry: TFRE_DB_QUERY_BASE);
+function TFRE_DB_UserSession.ProcessQryToDescription(const qry: TFRE_DB_QUERY_BASE): TFRE_DB_STORE_DATA_DESC;
 var
     st      : IFRE_DB_SIMPLE_TRANSFORM;
     frt     : IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION;
@@ -7843,14 +7893,17 @@ var
        cnt := qry.GetTotalCount;
        Result.Describe(cnt);
     end;
-
-
 begin
-  // { DO final right transform -> send }
   qry.GetTransfrom.GetFinalRightTransformFunction(frt,langr);
   resdata := qry.GetResultData;
-  SendServerClientAnswer(GetGridDataDescription,qry.GetReqID);
+  result := GetGridDataDescription;
   qry.free;
+end;
+
+procedure TFRE_DB_UserSession.COR_AnswerGridData(const qry: TFRE_DB_QUERY_BASE);
+begin
+  // { DO final right transform -> send }
+  SendServerClientAnswer(ProcessQryToDescription(qry),qry.GetReqID);
 end;
 
 procedure TFRE_DB_UserSession.COR_SendStoreUpdates(const data: TFRE_DB_SESSION_UPO);
@@ -7915,7 +7968,7 @@ begin
      if  lowercase(IFRE_APSC_TIMER(FTimers[i]).cs_GetID)=lowercase(id) then
        exit(false);
    end;
-   my_timer := FBoundSession_RA_SC.GetChannel.cs_GetChannelManager.AddChannelManagerTimer(id,invocation_interval,@INT_TimerCallBack,true,true,TMethod(TaskMethod).Code,TMethod(TaskMethod).Data);
+   my_timer := FBoundSession_RA_SC.GetChannel.cs_GetChannelManager.AddChannelManagerTimer(id,invocation_interval,@INT_TimerCallBack,true,TMethod(TaskMethod).Code,TMethod(TaskMethod).Data);
    //my_timer.TIM_Start;
    //my_timer.TIM_SetID(id);
    //my_timer.TIM_SetMethod(TMethod(TaskMethod));

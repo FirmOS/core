@@ -159,7 +159,7 @@ end;
   IFRE_APSC_CHANNEL_MANAGER=interface  { Thread bound to CPU, grouped by a IFRE_APSC_CHANNEL_GROUP }
     function  Implementor                 : TObject;
     function  GetID                       : TFRE_APSC_ID;
-    function  AddChannelManagerTimer      (const timer_id: TFRE_APSC_ID ; interval_ms : NativeUint ; timer_callback : TFRE_APSC_TIMER_CALLBACK ; const periodic :boolean = false ; const start_timer : boolean = false ; const asc_meth_code : CodePointer =nil ; const asc_meth_data : Pointer =nil) : IFRE_APSC_TIMER;
+    function  AddChannelManagerTimer      (const timer_id: TFRE_APSC_ID ; interval_ms : NativeUint ; timer_callback : TFRE_APSC_TIMER_CALLBACK ; const start_timer : boolean = false ; const asc_meth_code : CodePointer =nil ; const asc_meth_data : Pointer =nil) : IFRE_APSC_TIMER;
     function  GetChannelGroup             : IFRE_APSC_CHANNEL_GROUP;
     procedure SwitchToContext             (const object_co : TFRE_APSC_CoRoutineSimple);
     procedure SwitchToContextNe           (const nested_co : TFRE_APSC_CoRoutineSimpleNested);

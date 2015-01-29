@@ -8551,6 +8551,7 @@ function TFRE_DB_DERIVED_COLLECTION.WEB_GET_GRID_DATA(const input: IFRE_DB_Objec
 var
     query           : TFRE_DB_QUERY_BASE;
     qrydef          : TFRE_DB_QUERY_DEF;
+    e               : IFOS_E;
 
 begin
   //writeln('----------------------------');
@@ -8564,7 +8565,8 @@ begin
     qrydef     := SetupQryDefinitionFromWeb(input);
     query      := GFRE_DB_TCDM.GenerateQueryFromQryDef(qrydef);
     FLastQryID := query.GetQueryID;
-    GFRE_DB_TCDM.cs_InvokeQry(query,GetDeriveTransformation,ses.GetSessionID,ses.GetSessionChannelGroup,ses.GetCurrentRequestID);
+    ses.GetSyncWaitEvent(e);
+    GFRE_DB_TCDM.cs_InvokeQry(query,GetDeriveTransformation,ses.GetSessionID,ses.GetSessionChannelGroup,ses.GetCurrentRequestID,e);
   except on e:exception do
     begin
       writeln('GRID DATA EXCEPTION : ',e.Message,'   ',FName,' ',input.DumpToString());

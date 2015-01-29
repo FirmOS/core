@@ -480,7 +480,7 @@ type
 
   public
     function    GetThreadID              : TThreadID;
-    function    AddChannelManagerTimer   (const timer_id: TFRE_APSC_ID ; interval_ms : NativeUint ; timer_callback : TFRE_APSC_TIMER_CALLBACK ; const periodic :boolean = false ; const start_timer : boolean = false ; const asc_meth_code : CodePointer =nil ; const asc_meth_data : Pointer =nil) : IFRE_APSC_TIMER;
+    function    AddChannelManagerTimer   (const timer_id: TFRE_APSC_ID ; interval_ms : NativeUint ; timer_callback : TFRE_APSC_TIMER_CALLBACK ; const start_timer : boolean = false ; const asc_meth_code : CodePointer =nil ; const asc_meth_data : Pointer =nil) : IFRE_APSC_TIMER;
 
     constructor Create                   (const ID :TFRE_APSC_ID ; const OwnerChannelGroupThread : TFRE_APSC_CHANNELGROUP_THREAD);
     destructor  Destroy                  ; override;
@@ -1924,11 +1924,12 @@ var dnsres     : CInt;
     FChanError : String;
     FChanECode : NativeInt;
 
-    procedure BailOut;
+    procedure BailOut(const finalize_srv:boolean=false);
     begin
       EventDisconnectOnce;
       bufferevent_flush(FBufEvent,EV_WRITE,BEV_FLUSH);
-      cs_FinalizeFromPartner;
+      if finalize_srv then
+        cs_FinalizeFromPartner; { in a served socket scenario, something gone wrong}
     end;
 
 begin
@@ -1970,13 +1971,15 @@ begin
   else
   if (what and BEV_EVENT_ERROR)>0 then
     begin
-      FState := ch_BAD;
+      if FState=ch_WAIT then
+        FState := ch_NEW_CHANNEL_FAILED
+      else
+        FState := ch_ErrorOccured;
       dnsres :=  bufferevent_socket_get_dns_error(FBufEvent);
       if dnsres<>0 then
         begin
           FChanError := evutil_gai_strerror(dnsres);
           FChanECode := dnsres;
-          DoStatusCallback(self,ch_ErrorOccured,FChanError,FChanECode);
         end
       else
         APSC_CheckResultSetError(-1,FChanError,FChanECode,'SOCK:','');
@@ -1985,6 +1988,7 @@ begin
           FChanECode := -1;
           FChanError := 'no extended error info available';
         end;
+      DoStatusCallback(self,FState,FChanError,FChanECode);
       BailOut;
     end
   else
@@ -2567,6 +2571,8 @@ end;
 
 procedure TFRE_APSC_CHANNEL.cs_FinalizeFromPartner;
 begin
+  if FFinalizecalled then
+    exit;
   inherited cs_Finalize; { a served socket where finalize is called true EOF/ERROR on socket}
 end;
 
@@ -2689,7 +2695,7 @@ begin
   result := FMyThreadID;
 end;
 
-function TFRE_APSC_CHANNEL_MANAGER.AddChannelManagerTimer(const timer_id: TFRE_APSC_ID; interval_ms: NativeUint; timer_callback: TFRE_APSC_TIMER_CALLBACK; const periodic: boolean; const start_timer: boolean; const asc_meth_code: CodePointer; const asc_meth_data: Pointer): IFRE_APSC_TIMER;
+function TFRE_APSC_CHANNEL_MANAGER.AddChannelManagerTimer(const timer_id: TFRE_APSC_ID; interval_ms: NativeUint; timer_callback: TFRE_APSC_TIMER_CALLBACK; const start_timer: boolean; const asc_meth_code: CodePointer; const asc_meth_data: Pointer): IFRE_APSC_TIMER;
 var tim : TFRE_APSC_TIMER;
 begin
   tim    := TFRE_APSC_TIMER.Create(timer_id,interval_ms,timer_callback,asc_meth_code,asc_meth_data);

@@ -502,6 +502,7 @@ type
      FTransformobject          : IFRE_DB_SIMPLE_TRANSFORM;
      FClonedRangeDBOS          : IFRE_DB_ObjectArray;
      FConnection               : IFRE_DB_CONNECTION;
+     FSyncEvent                : IFOS_E;
 
      function                GetReflinkSpec        (const upper_refid : TFRE_DB_NameType):TFRE_DB_NameTypeRLArray;
      function                GetReflinkStartValues (const upper_refid : TFRE_DB_NameType):TFRE_DB_GUIDArray; { start values for the RL expansion }
@@ -529,7 +530,7 @@ type
      function    GetTotalCount                     : NativeInt; override;
 
 
-     procedure   SetupWorkingContextAndStart       (const Compute: IFRE_APSC_CHANNEL_GROUP; const transform: IFRE_DB_SIMPLE_TRANSFORM; const return_cg: IFRE_APSC_CHANNEL_GROUP; const ReqID: Qword);
+     procedure   SetupWorkingContextAndStart       (const Compute: IFRE_APSC_CHANNEL_GROUP; const transform: IFRE_DB_SIMPLE_TRANSFORM; const return_cg: IFRE_APSC_CHANNEL_GROUP; const ReqID: Qword ; const sync_event : IFOS_E);
      procedure   SetupWorkerCount_WIF              (const wc : NativeInt);
      function    GetAsyncDoneContext_WIF           : IFRE_APSC_CHANNEL_MANAGER;
      function    GetAsyncDoneChannelGroup_WIF      : IFRE_APSC_CHANNEL_GROUP;
@@ -832,7 +833,7 @@ type
 
     procedure   cs_DropAllQueryRanges                (const qry_id: TFRE_DB_CACHE_DATA_KEY;const whole_session,all_filterings : boolean); override; { is a seesion id only, if all ranges from that session should be deleted }
     procedure   cs_RemoveQueryRange                  (const qry_id: TFRE_DB_CACHE_DATA_KEY; const start_idx, end_idx: NativeInt); override;
-    procedure   cs_InvokeQry                         (const qry   : TFRE_DB_QUERY_BASE; const transform: IFRE_DB_SIMPLE_TRANSFORM; const sessionid: TFRE_DB_SESSION_ID ; const return_cg: IFRE_APSC_CHANNEL_GROUP;const ReqID:Qword); override;
+    procedure   cs_InvokeQry                         (const qry   : TFRE_DB_QUERY_BASE; const transform: IFRE_DB_SIMPLE_TRANSFORM; const sessionid: TFRE_DB_SESSION_ID ; const return_cg: IFRE_APSC_CHANNEL_GROUP;const ReqID:Qword ; const sync_event : IFOS_E); override;
     procedure   cs_InboundNotificationBlock          (const dbname: TFRE_DB_NameType ; const block : IFRE_DB_Object);override;
   end;
 
@@ -4570,13 +4571,14 @@ begin
   result := FPotentialCount;
 end;
 
-procedure TFRE_DB_QUERY.SetupWorkingContextAndStart(const Compute: IFRE_APSC_CHANNEL_GROUP; const transform: IFRE_DB_SIMPLE_TRANSFORM; const return_cg: IFRE_APSC_CHANNEL_GROUP; const ReqID: Qword);
+procedure TFRE_DB_QUERY.SetupWorkingContextAndStart(const Compute: IFRE_APSC_CHANNEL_GROUP; const transform: IFRE_DB_SIMPLE_TRANSFORM; const return_cg: IFRE_APSC_CHANNEL_GROUP; const ReqID: Qword; const sync_event: IFOS_E);
 begin
   FCompute         := Compute;
   FAsyncResultCtx  := return_cg;
   FMyComputeState  := cs_Initiated;
   FTransformobject := transform;
   FReqID           := ReqID;
+  FSyncEvent       := sync_event;
   FCompute.DoAsyncWork(self);
 end;
 
@@ -4795,12 +4797,19 @@ end;
 procedure TFRE_DB_QUERY.WorkDone_WIF;
 var ses : TFRE_DB_UserSession;
 begin { In context of Netserver Channel Group }
-  if GFRE_DBI.NetServ.FetchSessionByIdLocked(FQueryId.SessionID,ses) then
-    try
-      if not ses.DispatchCoroutine(TFRE_APSC_CoRoutine(@Ses.COR_AnswerGridData),self) then
-        Free;
-    finally
-      ses.UnlockSession;
+  if assigned(FSyncEvent) then
+    begin
+      FSyncEvent.SetEventWithData(self);
+    end
+  else
+    begin
+      if GFRE_DBI.NetServ.FetchSessionByIdLocked(FQueryId.SessionID,ses) then
+        try
+          if not ses.DispatchCoroutine(TFRE_APSC_CoRoutine(@Ses.COR_AnswerGridData),self) then
+            Free;
+        finally
+          ses.UnlockSession;
+        end;
     end;
 end;
 
@@ -6222,6 +6231,7 @@ end;
 procedure TFRE_DB_TRANSDATA_MANAGER.s_InboundNotificationBlock(const block: IFRE_DB_Object);
 var dummy : IFRE_DB_Object;
 begin
+ exit;
   if GDBPS_DISABLE_NOTIFY then
     exit;
   self.StartNotificationBlock(Block.Field('KEY').AsString);
@@ -6259,12 +6269,12 @@ begin
   FTransCompute.DoAsyncWorkSimpleMethod(TFRE_APSC_CoRoutine(@s_DropQryRange),p);
 end;
 
-procedure TFRE_DB_TRANSDATA_MANAGER.cs_InvokeQry(const qry: TFRE_DB_QUERY_BASE; const transform: IFRE_DB_SIMPLE_TRANSFORM; const sessionid: TFRE_DB_SESSION_ID; const return_cg: IFRE_APSC_CHANNEL_GROUP; const ReqID: Qword);
+procedure TFRE_DB_TRANSDATA_MANAGER.cs_InvokeQry(const qry: TFRE_DB_QUERY_BASE; const transform: IFRE_DB_SIMPLE_TRANSFORM; const sessionid: TFRE_DB_SESSION_ID; const return_cg: IFRE_APSC_CHANNEL_GROUP; const ReqID: Qword; const sync_event: IFOS_E);
 var lqry : TFRE_DB_QUERY;
 begin
   lqry := qry as TFRE_DB_QUERY;
   lqry.CaptureStartTime;
-  lqry.SetupWorkingContextAndStart(FTransCompute,transform,return_cg,ReqID);
+  lqry.SetupWorkingContextAndStart(FTransCompute,transform,return_cg,ReqID,sync_event);
 end;
 
 procedure TFRE_DB_TRANSDATA_MANAGER.cs_InboundNotificationBlock(const dbname: TFRE_DB_NameType; const block: IFRE_DB_Object);

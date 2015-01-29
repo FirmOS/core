@@ -539,7 +539,7 @@ uses
   function  evutil_make_listen_socket_reuseable (sock : evutil_socket_t):cint                                               ; cdecl ; external;
   function  evutil_make_socket_closeonexec      (sock : evutil_socket_t):cint                                               ; cdecl ; external;
   function  evutil_closesocket                  (sock : evutil_socket_t):cint                                               ; cdecl ; external;
-  function  evutil_socket_geterror              (sock : evutil_socket_t):cint                                               ; cdecl ; external;
+  //function  evutil_socket_geterror              (sock : evutil_socket_t):cint                                               ; cdecl ; external;
   function  evutil_socket_error_to_string       (errcode:cint):Pchar                                                        ; cdecl ; external;
 
   function  evbuffer_new                        : PEvbuffer                                                                 ; cdecl ; external;

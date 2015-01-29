@@ -85,17 +85,14 @@ begin
   if Get_AppClassAndUid('TFRE_DB_TEST_APP',FFeedAppClass,FFeedAppUid) then begin
     FFeeding := True;
   end;
-  FEED_Timer := chanman.AddTimer(2000); // Beside the "normal 1 sec" Timer a 5 sec timer in the channel context
-  FEED_Timer.TIM_SetID('FEED_'+inttostr(chanman.GetID));
-  writeln('Generated Feedtimer ',FEED_Timer.TIM_GetID);
-  FEED_Timer.TIM_SetCallback(@GenerateFeedDataTimer);
-  FEED_Timer.TIM_Start;
+  FEED_Timer := chanman.AddChannelManagerTimer('FEED_'+chanman.GetID,2000,@GenerateFeedDataTimer,true); // Beside the "normal 1 sec" Timer a 5 sec timer in the channel context
+  writeln('Generated Feedtimer ',FEED_Timer.cs_GetID);
 end;
 
 procedure TFRE_SAMPLE_FEED_CLIENT.MySessionDisconnected(const chanman: IFRE_APSC_CHANNEL_MANAGER);
 begin
-  writeln('FINALIZING FEED FROM CM_'+inttostr(chanman.GetID));
-  FEED_Timer.Finalize;
+  writeln('FINALIZING FEED FROM CM_'+chanman.GetID);
+  FEED_Timer.cs_Finalize;
   FFeeding   := false;
   inherited;
 end;

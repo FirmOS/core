@@ -104,9 +104,9 @@ type
     procedure  CCB_JobUpdate           (const DATA : IFRE_DB_Object ; const status:TFRE_DB_COMMAND_STATUS ; const error_txt:string);
     procedure  CCB_JobRequest          (const DATA : IFRE_DB_Object ; const status:TFRE_DB_COMMAND_STATUS ; const error_txt:string);
 
-    procedure  NewChannel              (const channel : IFRE_APSC_CHANNEL ; const event : TAPSC_ChannelState);
+    procedure  ChannelEvent            (const channel      : IFRE_APSC_CHANNEL ; const event : TAPSC_ChannelState ; const errorstring: string; const errorcode: NativeInt);
     procedure  ChannelDisco            (const channel : IFRE_APSC_CHANNEL);
-    procedure  ChannelRead             (const channel : IFRE_APSC_CHANNEL);
+    procedure  ChannelRead             (const channel      : IFRE_APSC_CHANNEL);
 
     procedure SendServerCommand       (const base_connection: TFRE_CLIENT_BASE_CONNECTION; const InvokeClass, InvokeMethod: String; const uidpath: TFRE_DB_GUIDArray; const DATA: IFRE_DB_Object; const ContinuationCB: TFRE_DB_CONT_HANDLER=nil; const timeout: integer=5000);
 
@@ -119,7 +119,7 @@ type
     procedure DispatchAnswers         ;
     procedure MyHandleSignals         (const signal       : NativeUint);
 
-    procedure   SubFeederNewSocket          (const channel  : IFRE_APSC_CHANNEL ; const channel_event : TAPSC_ChannelState);
+    procedure   SubFeederNewSocket          (const channel      : IFRE_APSC_CHANNEL ; const channel_event : TAPSC_ChannelState ; const errorstring: string; const errorcode: NativeInt);
     procedure   SubfeederReadClientChannel  (const channel  : IFRE_APSC_CHANNEL);
     procedure   SubfeederDiscoClientChannel (const channel  : IFRE_APSC_CHANNEL);
 
@@ -200,7 +200,7 @@ begin
                   SendServerCommand('FIRMOS','REG_REM_METH',nil,regdata);
                 end;
               RequestJobDatafromDB;
-              MySessionEstablished(FChannel.GetChannelManager);
+              MySessionEstablished(FChannel.cs_GetChannelManager);
             end
           else
             begin
@@ -215,7 +215,7 @@ begin
               FTimeout     := G_RETRY_TO;
               FClientState := csTimeoutWait;
               fMySessionID := 'NEW';
-              FChannel.Finalize;
+              FChannel.cs_Finalize;
               FChannel:=nil;
               try
                 writeln('SETUP FAIL',data.DumpToString());
@@ -228,7 +228,7 @@ begin
           writeln('CCB_SetupSession FAILED ????');
           FClientState := csTimeoutWait;
           fMySessionID := 'NEW';
-          FChannel.Finalize;
+          FChannel.cs_Finalize;
           FChannel:=nil;
           exit;
         end;
@@ -301,18 +301,23 @@ begin
     end;
 end;
 
-procedure TFRE_BASE_CLIENT.NewChannel(const channel: IFRE_APSC_CHANNEL; const event: TAPSC_ChannelState);
+procedure TFRE_BASE_CLIENT.ChannelEvent(const channel: IFRE_APSC_CHANNEL; const event: TAPSC_ChannelState; const errorstring: string; const errorcode: NativeInt);
 var data           : IFRE_DB_Object;
     fuser          : string;
     fpass          : string;
+    cstate         : TAPSC_ChannelState;
 
 begin
   FClientStateLock.Acquire;
   try
-    writeln('GOT A NEW CHANNEL ON CM_',channel.GetChannelManager.GetID,' ',channel.GetVerboseDesc,' ',event,' ',channel.GetHandleKey);
+    writeln('GOT A NEW CHANNEL ON CM_',channel.cs_GetChannelManager.GetID,' ',channel.ch_GetVerboseDesc,' ',event,' ',channel.ch_GetHandleKey);
     if assigned(FChannel) then
       GFRE_BT.CriticalAbort('I SHOULD NOT HAVE A CHANNEL HERE (B)!');
     case event of
+      ch_ErrorOccured:
+        begin
+          channel.cs_Finalize;
+        end;
       ch_NEW_CS_CONNECTED:
         begin
           FClientState    := csSETUPSESSION;
@@ -334,11 +339,14 @@ begin
         end;
       ch_NEW_CHANNEL_FAILED:
         begin
-          writeln('NEW CHANNEL ',channel.GetVerboseDesc,' FAILED ',channel.CH_GetErrorString,' ',channel.CH_GetErrorCode);
-          channel.Finalize;
+          writeln('NEW CHANNEL ',channel.ch_GetVerboseDesc,' FAILED ',' ',errorstring);
+          FTimeout     := G_CONNREFUSED_TO;
+          //if channel.CH_GetErrorCode=ESysECONNREFUSED then //FIXXME
+          FClientState := csTimeoutwait;
+          channel.cs_Finalize;
         end
       else
-        GFRE_BT.CriticalAbort('unexpected newchannel event' +inttostr(ord(event)));
+        GFRE_BT.CriticalAbort('unexpected channel event' +inttostr(ord(event)));
     end;
   finally
     FClientStateLock.Release;
@@ -350,14 +358,8 @@ begin
  FClientStateLock.Acquire;
  try
     //writeln('CHANNEL ',channel.GetVerboseDesc,' DISCONNECT CM_' ,channel.GetChannelManager.GetID);
-    if channel.CH_GetState<>ch_EOF then
-      begin
-        FTimeout     := G_CONNREFUSED_TO;
-        if channel.CH_GetErrorCode=ESysECONNREFUSED then
-          FClientState := csTimeoutwait;
-      end;
     if FClientState=csConnected then
-      MySessionDisconnected(FChannel.GetChannelManager);
+      MySessionDisconnected(FChannel.cs_GetChannelManager);
     try
       if assigned(FBaseconnection) then
         begin
@@ -419,9 +421,9 @@ begin
                        if Assigned(FChannel) then
                          GFRE_BT.CriticalAbort('SHOULD NOT HAVE A CHANNEL HERE!');
                        if cFRE_MWS_IP<>'' then
-                         GFRE_SC.AddClient_TCP(cFRE_MWS_IP,'44001','FEED',nil,@NewChannel,@ChannelRead,@ChannelDisco)
+                         GFRE_SC.AddClient_TCP(cFRE_MWS_IP,'44001','FEED',true,nil,@ChannelEvent,@ChannelRead,@ChannelDisco)
                        else
-                         GFRE_SC.AddClient_TCP('0.0.0.0','44001','FEED',nil,@NewChannel,@ChannelRead,@ChannelDisco)
+                         GFRE_SC.AddClient_TCP('0.0.0.0','44001','FEED',true,nil,@ChannelEvent,@ChannelRead,@ChannelDisco)
                      end;
           csWaitConnect: begin
 
@@ -457,10 +459,10 @@ begin
               if (subs.FSpecfile<>'') then
                 begin
                   if FileExists(subs.FSpecfile) then
-                    GFRE_SC.AddClient_UX(subs.FSpecfile,inttostr(i),nil,@SubFeederNewSocket,@SubfeederReadClientChannel,@SubfeederDiscoClientChannel)
+                    GFRE_SC.AddClient_UX(subs.FSpecfile,inttostr(i),true,nil,@SubFeederNewSocket,@SubfeederReadClientChannel,@SubfeederDiscoClientChannel)
                 end
               else
-                GFRE_SC.AddClient_TCP(subs.FIp,subs.FPort,inttostr(i),nil,@SubFeederNewSocket,@SubfeederReadClientChannel,@SubfeederDiscoClientChannel);
+                GFRE_SC.AddClient_TCP(subs.FIp,subs.FPort,inttostr(i),true,nil,@SubFeederNewSocket,@SubfeederReadClientChannel,@SubfeederDiscoClientChannel);
             end;
           sfc_TRYING: ; // do nothing
           sfc_OK: ; // do nothing
@@ -567,7 +569,7 @@ begin
   FRifClassList.Add(rif_class);
 end;
 
-procedure TFRE_BASE_CLIENT.SubFeederNewSocket(const channel: IFRE_APSC_CHANNEL; const channel_event: TAPSC_ChannelState);
+procedure TFRE_BASE_CLIENT.SubFeederNewSocket(const channel: IFRE_APSC_CHANNEL; const channel_event: TAPSC_ChannelState; const errorstring: string; const errorcode: NativeInt);
 var subs : TSUB_FEED_STATE;
     id   : NativeInt;
 begin
@@ -586,7 +588,7 @@ begin
     end
   else
     begin
-      channel.Finalize;
+      channel.cs_Finalize;
     end;
 end;
 
@@ -639,7 +641,7 @@ begin
                 except on e:exception do
                   begin
                     writeln('SUB CHANNEL READ FAILED ',e.Message);
-                    channel.Finalize;
+                    channel.cs_Finalize;
                     subs.FConnectState := sfc_NOT_CONNECTED;
                   end;
                 end;
@@ -728,7 +730,7 @@ begin
 
 //  writeln('SWL: TJOBS',tjobs.DumpToString());
 
-  transfer_list := GFRE_DBI.NewObject;
+  transfer_list := GFRE_DBI.NewObject;                          //GFRE_DBI
   FREDIFF_GenerateRelationalDiffContainersandAddToBulkObject(tjobs,ojobs,Fcollection_assignment,transfer_list);
 
   if FREDIFF_ChangesGenerated(transfer_list) then
@@ -844,8 +846,8 @@ begin
     GFRE_BT.CriticalAbort('no MACHINE MAC set / MAC entry missing in subsection [MACHINE] in .ini File / or startparameter --mac=<> missing ');
   if not FREDB_CheckMacAddress(cFRE_MACHINE_MAC) then
     GFRE_BT.CriticalAbort('mac address format invalid use a contiguos hexstring or a colon seperated string invalid [%s]',[cFRE_MACHINE_MAC]);
-  GFRE_SC.AddTimer('F_STATE',1000,@MyStateCheckTimer);
-  GFRE_SC.AddTimer('F_SUB_STATE',1000,@MySubFeederStateTimer);
+  GFRE_SC.AddDefaultGroupTimer('F_STATE',1000,@MyStateCheckTimer,true);
+  GFRE_SC.AddDefaultGroupTimer('F_SUB_STATE',1000,@MySubFeederStateTimer,true);
   GFRE_SC.SetSingnalCB(@MyHandleSignals);
 
   Fcollection_assignment := GFRE_DBI.NewObject;
@@ -881,6 +883,7 @@ procedure TFRE_BASE_CLIENT.MyConnectionTimer;
 begin
   writeln('BASECLIENT CONNECTION TIMER');
   ParseJobDirectory;
+  writeln('BASECLIENT CONNECTION TIMER DONE');
 end;
 
 procedure TFRE_BASE_CLIENT.QueryUserPass(out user, pass: string);
@@ -983,7 +986,7 @@ end;
 function TFRE_BASE_CLIENT.GetCurrentChanManLocked: IFRE_APSC_CHANNEL_MANAGER;
 begin
   FClientStateLock.Acquire;
-  result := FChannel.GetChannelManager;
+  result := FChannel.cs_GetChannelManager;
 end;
 
 procedure TFRE_BASE_CLIENT.UnlockCurrentChanMan;
@@ -1067,17 +1070,14 @@ end;
 
 procedure TFRE_BASE_CLIENT.MySessionEstablished(const chanman: IFRE_APSC_CHANNEL_MANAGER);
 begin
-  FChannelTimer := chanman.AddTimer(1000);
-  FChannelTimer.TIM_SetID('CT');
-  FChannelTimer.TIM_SetCallback(@ChannelTimerCB);
-  FChannelTimer.TIM_Start;
+  FChannelTimer := chanman.AddChannelManagerTimer('CT',1000,@ChannelTimerCB,true);
 end;
 
 procedure TFRE_BASE_CLIENT.MySessionDisconnected(const chanman: IFRE_APSC_CHANNEL_MANAGER);
 begin
   if assigned(FChannelTimer) then
     begin
-      FChannelTimer.Finalize;
+      FChannelTimer.cs_Finalize;
       FChannelTimer := nil;
     end;
 end;
