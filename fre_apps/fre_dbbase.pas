@@ -82,6 +82,10 @@ type
   TFRE_DB_STATUS_PLUGIN=class(TFRE_DB_OBJECT_PLUGIN_BASE)
     class procedure RegisterSystemScheme                (const scheme : IFRE_DB_SCHEMEOBJECT); override;
     class procedure InstallDBObjects                    (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+  public
+    procedure       locked                             ;
+    procedure       unlock                             ;
+    function        isLocked                           : Boolean;
   end;
 
  // TFRE_DB_NOTE_PLUGIN=class(TFRE_DB_OBJECT_PLUGIN_BASE);
@@ -129,6 +133,28 @@ begin
     currentVersionId:='0.1';
   end;
 end;
+
+procedure TFRE_DB_STATUS_PLUGIN.locked;
+begin
+  Field('locked').AsBoolean:=true;
+end;
+
+procedure TFRE_DB_STATUS_PLUGIN.unlock;
+begin
+  Field('locked').AsBoolean:=false;
+end;
+
+function TFRE_DB_STATUS_PLUGIN.isLocked: Boolean;
+var
+  fld: IFRE_DB_FIELD;
+begin
+  if FieldOnlyExisting('locked',fld) then begin
+    Result:=fld.AsBoolean;
+  end else begin
+    Result:=false;
+  end;
+end;
+
 
 { TFRE_DB_DEBUG_PLUGIN }
 
