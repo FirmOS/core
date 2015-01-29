@@ -1769,7 +1769,7 @@ end;
 
 procedure TFRE_APSC_TIMER.ThreadCheck;
 begin
-  if FAssignedThreadID=nil then
+  if NativeUint(FAssignedThreadID)=0 then
     GFRE_BT.CriticalAbort('usage before creation failure timer [%s] no assigned thread vs creation thread [%s] ',[FId,inttostr(NativeUint(FAssignedThreadID))]);
   if GetThreadID<>FAssignedThreadID then
     GFRE_BT.CriticalAbort('timer [%s] thread context violation [%s] vs [%s] ',[FId,inttostr(NativeUint(GetThreadID)),inttostr(NativeUint(FAssignedThreadID))]);
