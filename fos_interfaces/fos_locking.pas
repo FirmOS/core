@@ -35,6 +35,8 @@ unit fos_locking;
 (§LIC_END)
 }
 
+{$mode objfpc}{$H+}
+{$modeswitch nestedprocvars}
 
 interface
 uses Sysutils,SyncObjs,

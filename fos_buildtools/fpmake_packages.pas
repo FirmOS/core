@@ -25,6 +25,7 @@ program fpmake_packages;
        Directory:=cFOS_BUILD_PREFIX+'fos_interfaces';
        Dependencies.Add('fcl-json');
        Dependencies.Add('fcl-xml');
+       Dependencies.Add('fcl-process');
        if not EnableOldRTLStructure then 
          begin
            Dependencies.Add('rtl-extra');
@@ -196,7 +197,6 @@ program fpmake_packages;
         AddUnit('fre_db_persistance_common.pas');
         AddUnit('fre_db_core.pas');
         AddUnit('fre_db_graph.pas');
-        AddUnit('fre_db_embedded_impl.pas');
         AddUnit('fre_db_web_styling.pas');
         AddUnit('fre_db_login.pas');
         AddUnit('fre_db_tasker.pas');
@@ -207,6 +207,7 @@ program fpmake_packages;
         AddUnit('fre_configuration.pas');
         AddUnit('../fre_core/fre_process.pas');
         addunit('fre_db_core_transdata.pas');
+        AddUnit('fre_diff_transport.pas');
      end;
     end;
     P := AddPackage('FRE_BLKCOM');
@@ -233,6 +234,7 @@ program fpmake_packages;
        Dependencies.Add('FRE_BLKCOM');
        Dependencies.Add('fcl-process');
        with Targets do begin
+         AddUnit('fre_monitoring_common');
          AddUnit('../fre_db/fre_dbtest.pas');
          AddUnit('../fre_server/fre_base_server.pas');
          AddUnit('../fre_server/fre_base_client.pas');
@@ -247,6 +249,7 @@ program fpmake_packages;
          AddUnit('../fre_server/fre_openssl_cmd.pas');
          AddUnit('fre_accesscontrol_common.pas');
          AddUnit('fre_translationapp.pas');
+         AddUnit('../fre_server/fre_pl_dbo_server.pas');
          AddUnit('../fre_server/fre_net_pl_client.pas');
 
        end;
