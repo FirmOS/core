@@ -194,6 +194,14 @@ type
     function  Describe (const caption,description_: String) : TFRE_DB_INPUT_DESCRIPTION_DESC;
   end;
 
+  { TFRE_DB_INPUT_BUTTON_DESC }
+
+  TFRE_DB_INPUT_BUTTON_DESC   = class(TFRE_DB_FORM_INPUT_DESC)
+  public
+    //@ Describes an input field as button
+    function  Describe (const caption,buttonCaption: String; const serverFunc:TFRE_DB_SERVER_FUNC_DESC) : TFRE_DB_INPUT_BUTTON_DESC;
+  end;
+
   { TFRE_DB_INPUT_BOOL_DESC }
 
   TFRE_DB_INPUT_BOOL_DESC   = class(TFRE_DB_FORM_INPUT_DESC)
@@ -390,6 +398,8 @@ type
     function  AddInput                : TFRE_DB_INPUT_DESC;
     //@ Creates a new description and adds it to the form. See also TFRE_DB_INPUT_DESCRIPTION_DESC.
     function  AddDescription          : TFRE_DB_INPUT_DESCRIPTION_DESC;
+    //@ Creates a new input button and adds it to the form. See also TFRE_DB_INPUT_BUTTON_DESC.
+    function  AddInputButton          : TFRE_DB_INPUT_BUTTON_DESC;
     //@ Creates a new boolean field and adds it to the form. See also TFRE_DB_INPUT_BOOL_DESC.
     function  AddBool                 : TFRE_DB_INPUT_BOOL_DESC;
     //@ Creates a new boolean field and adds it to the form. See also TFRE_DB_INPUT_BOOL_DESC.
@@ -409,7 +419,7 @@ type
     //@ Creates a new input block and adds it to the form. See also TFRE_DB_INPUT_BLOCK_DESC.
     function  AddBlock                : TFRE_DB_INPUT_BLOCK_DESC;
     //@ Creates a new grid and adds it to the form. See also TFRE_DB_VIEW_LIST_DESC.
-    function  AddList                 : TFRE_DB_VIEW_LIST_DESC;
+    //function  AddList                 : TFRE_DB_VIEW_LIST_DESC;
     //@ Creates a new button and adds it to the form. See also TFRE_DB_BUTTON_DESC.
     function  AddButton               : TFRE_DB_BUTTON_DESC;
     //@ Creates a new input field and adds it to the form. See also TFRE_DB_INPUT_DESC.
@@ -468,7 +478,7 @@ type
     //@ Creates a new input block and adds it to the form. See also TFRE_DB_INPUT_BLOCK_DESC.
     function  AddBlock             (const relSize:Integer=1): TFRE_DB_INPUT_BLOCK_DESC; reintroduce;
     //@ Creates a new grid and adds it to the form. See also TFRE_DB_VIEW_LIST_DESC.
-    function  AddList              (const relSize:Integer=1): TFRE_DB_VIEW_LIST_DESC; reintroduce;
+    //function  AddList              (const relSize:Integer=1): TFRE_DB_VIEW_LIST_DESC; reintroduce;
   end;
 
   { TFRE_DB_INPUT_GROUP_PROXY_DESC }
@@ -783,9 +793,20 @@ implementation
     raise Exception.Create('invalid short DBContentType specifier : ['+fts+']');
   end;
 
+  { TFRE_DB_INPUT_BUTTON_DESC }
+
+  function TFRE_DB_INPUT_BUTTON_DESC.Describe(const caption,buttonCaption: String; const serverFunc: TFRE_DB_SERVER_FUNC_DESC): TFRE_DB_INPUT_BUTTON_DESC;
+  begin
+    inherited Describe(caption, '');
+    Field('buttonCaption').AsString:=buttonCaption;
+    Field('serverFunc').AsObject:=serverFunc;
+    Field('buttonType').AsString:=CFRE_DB_BUTTON_TYPE[fdbbt_button];
+    Result:=Self;
+  end;
+
   { TFRE_DB_HORDE_DESC }
 
-    function TFRE_DB_HORDE_DESC.Describe(const host: String; const port: Integer; const protocol: String): TFRE_DB_HORDE_DESC;
+  function TFRE_DB_HORDE_DESC.Describe(const host: String; const port: Integer; const protocol: String): TFRE_DB_HORDE_DESC;
   begin
     if not FieldExists('id') then begin
       Field('id').AsString:='id'+UID_String;
@@ -1334,12 +1355,12 @@ implementation
     Field('sizeSum').AsInt16:=Field('sizeSum').AsInt16+relSize;
   end;
 
-  function TFRE_DB_INPUT_BLOCK_DESC.AddList(const relSize: Integer): TFRE_DB_VIEW_LIST_DESC;
-  begin
-    Result:=inherited AddList;
-    Result.Field('relSize').AsInt16:=relSize;
-    Field('sizeSum').AsInt16:=Field('sizeSum').AsInt16+relSize;
-  end;
+  //function TFRE_DB_INPUT_BLOCK_DESC.AddList(const relSize: Integer): TFRE_DB_VIEW_LIST_DESC;
+  //begin
+  //  Result:=inherited AddList;
+  //  Result.Field('relSize').AsInt16:=relSize;
+  //  Field('sizeSum').AsInt16:=Field('sizeSum').AsInt16+relSize;
+  //end;
 
   procedure TFRE_DB_INPUT_BLOCK_DESC.AddStore(const store: TFRE_DB_STORE_DESC);
   var
@@ -2261,6 +2282,12 @@ implementation
     Field('elements').AddObject(Result);
   end;
 
+  function TFRE_DB_FORM_DESC.AddInputButton: TFRE_DB_INPUT_BUTTON_DESC;
+  begin
+    Result := TFRE_DB_INPUT_BUTTON_DESC.create;
+    Field('elements').AddObject(Result);
+  end;
+
   function TFRE_DB_FORM_DESC.AddBool: TFRE_DB_INPUT_BOOL_DESC;
   begin
    Result := TFRE_DB_INPUT_BOOL_DESC.create;
@@ -2315,11 +2342,11 @@ implementation
    Field('elements').AddObject(Result);
   end;
 
-  function TFRE_DB_FORM_DESC.AddList: TFRE_DB_VIEW_LIST_DESC;
-  begin
-   result := TFRE_DB_VIEW_LIST_DESC.create;
-   Field('elements').AddObject(Result);
-  end;
+  //function TFRE_DB_FORM_DESC.AddList: TFRE_DB_VIEW_LIST_DESC;
+  //begin
+  // result := TFRE_DB_VIEW_LIST_DESC.create;
+  // Field('elements').AddObject(Result);
+  //end;
 
   function TFRE_DB_FORM_DESC.AddButton: TFRE_DB_BUTTON_DESC;
   begin

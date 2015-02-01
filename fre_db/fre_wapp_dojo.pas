@@ -58,7 +58,7 @@ type
    function  _getStoreById             (const id: String;const stores: IFRE_DB_ObjectArray): TFRE_DB_STORE_DESC;
    function  _EscapeValueString        (const value: String): String;
    procedure _BuildForm                (const session: TFRE_DB_UserSession; const co:TFRE_DB_FORM_DESC;const isDialog:Boolean; var hasCloseButton: Boolean);
-   procedure _BuildButton              (const co:TFRE_DB_BUTTON_DESC; const hiddenFields: IFRE_DB_ObjectArray; const isDialog:Boolean; var hasCloseButton: Boolean);
+   procedure _BuildButton              (const co:IFRE_DB_Object; const hiddenFields: IFRE_DB_ObjectArray; const isDialog:Boolean; var hasCloseButton: Boolean; const captionField:String='caption');
    procedure _BuildInputDep            (const co: TFRE_DB_FORM_INPUT_DESC);
    procedure _BuildInput               (const session: TFRE_DB_UserSession; const co:TFRE_DB_INPUT_DESC);
    procedure _BuildInputNumber         (const co:TFRE_DB_INPUT_NUMBER_DESC);
@@ -67,7 +67,7 @@ type
    procedure _BuildInputFile           (const session:TFRE_DB_UserSession; const co:TFRE_DB_INPUT_FILE_DESC);
    procedure _BuildInputBool           (const co:TFRE_DB_INPUT_BOOL_DESC);
    procedure _BuildInputChooser        (const session:TFRE_DB_UserSession; const co:TFRE_DB_INPUT_CHOOSER_DESC;const stores: IFRE_DB_ObjectArray);
-   procedure _handleFormElement        (const session: TFRE_DB_UserSession; const elem: TFRE_DB_CONTENT_DESC; const formName:String; const stores:IFRE_DB_ObjectArray; var hiddenFields: IFRE_DB_ObjectArray; const groupId: String; const hidden: Boolean; const hideEmptyGroups: Boolean);
+   procedure _handleFormElement        (const session: TFRE_DB_UserSession; const elem: TFRE_DB_CONTENT_DESC; const formName:String; const stores:IFRE_DB_ObjectArray; var hiddenFields: IFRE_DB_ObjectArray; const groupId: String; const hidden: Boolean; const hideEmptyGroups: Boolean; const isDialog: Boolean);
    function  _BuildParamsObject        (const co:IFRE_DB_ObjectArray; const keyProp: String='key'; const valueProp: String='value'):String;
    function  _BuildJSArray             (const arr:TFRE_DB_StringArray):String;
    function  _AddParams                (const jsVarName:String;const co:IFRE_DB_ObjectArray;const keyProp:String='key';const valueProp:String='value'):String;
@@ -307,7 +307,7 @@ implementation
 
     jsContentAdd('"<table class=''firmosFormTable'' style=''width:100%''>"+');
     for i:=0 to co.Field('elements').ValueCount-1 do begin
-      _handleFormElement(session,co.Field('elements').AsObjectItem[i].Implementor_HC as TFRE_DB_CONTENT_DESC,co.Field('id').AsString,stores,hiddenFields,'',false,co.Field('hideEmptyGroups').AsBoolean);
+      _handleFormElement(session,co.Field('elements').AsObjectItem[i].Implementor_HC as TFRE_DB_CONTENT_DESC,co.Field('id').AsString+'_form',stores,hiddenFields,'',false,co.Field('hideEmptyGroups').AsBoolean,isDialog);
     end;
 
     hasCloseButton:=false;
@@ -317,7 +317,7 @@ implementation
 
     jsContentAdd('"<tr class=''firmosFormButtonRow''><td colspan=''2'' style=''text-align:center;''>"+');
     for i := 0 to co.Field('buttons').ValueCount - 1 do begin
-      _BuildButton(co.Field('buttons').AsObjectItem[i].Implementor_HC as TFRE_DB_BUTTON_DESC,hiddenFields,isDialog,hasCloseButton);
+      _BuildButton(co.Field('buttons').AsObjectItem[i],hiddenFields,isDialog,hasCloseButton);
       jsContentAdd('+');
     end;
     jsContentAdd('"</td></tr>"+');
@@ -325,7 +325,7 @@ implementation
     jsContentAdd('"</form>"');
   end;
 
-  procedure TFRE_DB_WAPP_DOJO._BuildButton(const co: TFRE_DB_BUTTON_DESC; const hiddenFields: IFRE_DB_ObjectArray; const isDialog:Boolean; var hasCloseButton: Boolean);
+  procedure TFRE_DB_WAPP_DOJO._BuildButton(const co: IFRE_DB_Object; const hiddenFields: IFRE_DB_ObjectArray; const isDialog: Boolean; var hasCloseButton: Boolean; const captionField: String);
   var
     propsPrefix: String;
     bt         : TFRE_DB_BUTTON_TYPE;
@@ -353,7 +353,7 @@ implementation
                         hasCloseButton:=true;
                       end;
     end;
-    jsContentAdd('">'+co.Field('caption').AsString+'</button>"');
+    jsContentAdd('">'+co.Field(captionField).AsString+'</button>"');
   end;
 
   procedure TFRE_DB_WAPP_DOJO._BuildInputDep(const co: TFRE_DB_FORM_INPUT_DESC);
@@ -713,13 +713,14 @@ implementation
      end;
   end;
 
-  procedure TFRE_DB_WAPP_DOJO._handleFormElement(const session: TFRE_DB_UserSession; const elem: TFRE_DB_CONTENT_DESC; const formName: String; const stores: IFRE_DB_ObjectArray; var hiddenFields: IFRE_DB_ObjectArray;const groupId:String; const hidden:Boolean; const hideEmptyGroups: Boolean);
+  procedure TFRE_DB_WAPP_DOJO._handleFormElement(const session: TFRE_DB_UserSession; const elem: TFRE_DB_CONTENT_DESC; const formName: String; const stores: IFRE_DB_ObjectArray; var hiddenFields: IFRE_DB_ObjectArray;const groupId:String; const hidden:Boolean; const hideEmptyGroups: Boolean; const isDialog: Boolean);
   var
     i             : Integer;
     classl,classr : String;
     blockclass    : String;
     labelclass    : String;
     addGroupId    : String;
+    hasCloseButton: Boolean;
   begin
     if elem is TFRE_DB_INPUT_BLOCK_DESC then begin
       jsContentAdd('"<tr id='''+elem.Field('id').AsString+'_tr''><td colspan=2>"+');
@@ -736,7 +737,7 @@ implementation
         jsContentAdd('"<div style=''width:'+FloatToStrF(Trunc(elem.Field('elements').AsObjectItem[i].Field('relSize').AsInt16 / elem.Field('sizeSum').AsInt16 * 10000) / 100,ffFixed,3,2)+'%; float:left;''>"+');
         jsContentAdd('"<div class='''+blockclass+'''>"+');
         jsContentAdd('"<table class=''firmosFormTableIB'' style=''width:100%''>"+');
-        _handleFormElement(session,elem.Field('elements').AsObjectItem[i].Implementor_HC as TFRE_DB_CONTENT_DESC,formName,stores,hiddenFields,groupId,hidden,hideEmptyGroups);
+        _handleFormElement(session,elem.Field('elements').AsObjectItem[i].Implementor_HC as TFRE_DB_CONTENT_DESC,formName,stores,hiddenFields,groupId,hidden,hideEmptyGroups,isDialog);
         jsContentAdd('"</table></div>"+');
         jsContentAdd('"</div>"+');
       end;
@@ -766,7 +767,7 @@ implementation
             end;
           end;
           for i := 0 to elem.Field('elements').ValueCount - 1 do begin
-            _handleFormElement(session,elem.Field('elements').AsObjectItem[i].Implementor_HC as TFRE_DB_CONTENT_DESC,formName,stores,hiddenFields,groupId+addGroupId,elem.Field('collapsed').AsBoolean or hidden,hideEmptyGroups);
+            _handleFormElement(session,elem.Field('elements').AsObjectItem[i].Implementor_HC as TFRE_DB_CONTENT_DESC,formName,stores,hiddenFields,groupId+addGroupId,elem.Field('collapsed').AsBoolean or hidden,hideEmptyGroups,isDialog);
           end;
         end;
       end else begin
@@ -802,6 +803,11 @@ implementation
             'TFRE_DB_INPUT_DESCRIPTION_DESC': begin
                                                 jsContentAdd('"<div class=''firmosFormDescriptionField''>'+ _EscapeValueString(elem.Field('defaultValue').AsString) +'</div>"+');
                                               end;
+            'TFRE_DB_INPUT_BUTTON_DESC': begin
+                                           jsContentAdd('"<div class=''firmosFormButtonField''>"+');
+                                           _BuildButton(elem,hiddenFields,isDialog,hasCloseButton,'buttonCaption');
+                                           jsContentAdd('+"</div>"+');
+                                         end;
             'TFRE_DB_INPUT_DESC': begin
                                     _BuildInput(session,elem.Implementor_HC as TFRE_DB_INPUT_DESC);
                                   end;
@@ -918,7 +924,7 @@ implementation
           if i>0 then begin
             jsContentAdd('+');
           end;
-          _BuildButton(co.Field('buttons').AsObjectItem[i].Implementor_HC as TFRE_DB_BUTTON_DESC,hiddenFields,true,hasCloseButton);
+          _BuildButton(co.Field('buttons').AsObjectItem[i],hiddenFields,true,hasCloseButton);
         end;
       end;
       jsContentAdd('  ,_maxHeight: '+co.Field('maxHeight').AsString);
