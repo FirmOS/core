@@ -896,6 +896,8 @@ type
     FValidatorParams : TFRE_DB_FIELD;
     FSubSchemeName   : TFRE_DB_FIELD;
     FEnumName        : TFRE_DB_FIELD;
+    FMinValue        : TFRE_DB_FIELD;
+    FMaxValue        : TFRE_DB_FIELD;
     FValidatorName   : TFRE_DB_FIELD;
     FCalcmethodName  : TFRE_DB_FIELD;
     FDepFields       : TFRE_DB_Object;
@@ -908,11 +910,14 @@ type
 
     function   GetAddConfirm       : Boolean;
     function   GetEnum             : TFRE_DB_Enum;
+    function   GetMinValue         : Int64;
+    function   GetMaxValue         : Int64;
     function   GetFieldName        : TFRE_DB_NameType;
     function   GetFieldProperties  : TFRE_DB_FieldProperties;
     function   GetFieldType        : TFRE_DB_FIELDTYPE;
     function   getIsPass           : Boolean;
     function   GetSubSchemeName    : TFRE_DB_NameType;
+    function   getHasMinMax        : Boolean;
     function   getMultiValues      : Boolean;
     function   getRequired         : Boolean;
     function   getValidator        : TFRE_DB_ClientFieldValidator;
@@ -926,8 +931,11 @@ type
     procedure  setAddConfirm       (AValue: Boolean);
     procedure  setisPass           (AValue: Boolean);
     procedure  setMultiValues      (AValue: Boolean);
+    procedure  setHasMinMax        (AValue: Boolean);
     procedure  setRequired         (AValue: Boolean);
     procedure  setEnum             (AValue: TFRE_DB_Enum);
+    procedure  setMinValue         (AValue: Int64);
+    procedure  setMaxValue         (AValue: Int64);
     procedure  SetSubschemeName    (AValue: TFRE_DB_NameType);
     procedure  setValidator        (AValue: TFRE_DB_ClientFieldValidator);
     function   GetParentScheme     : TFRE_DB_SchemeObject;
@@ -941,6 +949,7 @@ type
     function   IFRE_DB_FieldSchemeDefinition.setValidator    = setValidatorI;
     function   IFRE_DB_FieldSchemeDefinition.getDepFields    = getDepFieldsI;
     function   IFRE_DB_FieldSchemeDefinition.SetupFieldDef   = SetupFieldDefI;
+    function   IFRE_DB_FieldSchemeDefinition.SetupFieldDefNum= SetupFieldDefNumI;
     function   IFRE_DB_FieldSchemeDefinition.GetSubScheme    = GetSubSchemeI;
     function   IFRE_DB_FieldSchemeDefinition.ValidateField   = ValidateFieldI;
     function   IFRE_DB_FieldSchemeDefinition.AddEnumDepField = AddEnumDepFieldI;
@@ -948,6 +957,8 @@ type
     function    IsACalcField       : Boolean;
     function    SetupFieldDef      (const is_required:boolean;const is_multivalue:boolean=false;const enum_key:TFRE_DB_NameType='';const validator_key:TFRE_DB_NameType='';const is_pass:Boolean=false;const add_confirm:Boolean=false ; const validator_params : TFRE_DB_Object=nil):TFRE_DB_FieldSchemeDefinition;
     function    SetupFieldDefI     (const is_required:boolean;const is_multivalue:boolean=false;const enum_key:TFRE_DB_NameType='';const validator_key:TFRE_DB_NameType='';const is_pass:Boolean=false; const add_confirm:Boolean=false ; const validator_params : IFRE_DB_Object=nil):IFRE_DB_FieldSchemeDefinition;
+    function    SetupFieldDefNum   (const is_required: boolean; const min_value: Int64; const max_value: Int64): TFRE_DB_FieldSchemeDefinition;
+    function    SetupFieldDefNumI  (const is_required: boolean; const min_value: Int64; const max_value: Int64): IFRE_DB_FieldSchemeDefinition;
     procedure   SetCalcMethod      (const calc_method:IFRE_DB_CalcMethod);
     procedure   AddDepField        (const fieldName: TFRE_DB_String;const disablesField: Boolean=true);
     procedure   ForAllDepfields    (const depfielditerator : TFRE_DB_Depfielditerator);
@@ -963,6 +974,9 @@ type
     property    IsPass             :Boolean read GetIsPass write SetIsPass;
     property    AddConfirm         :Boolean read GetAddConfirm write SetAddConfirm;
     property    MultiValues        :Boolean read GetMultiValues write SetMultiValues;
+    property    hasMinMax          :Boolean read GetHasMinMax write SetHasMinMax;
+    property    MinValue           :Int64 read GetMinValue write SetMinValue;
+    property    MaxValue           :Int64 read GetMaxValue write SetMaxValue;
     property    FieldProperties    :TFRE_DB_FieldProperties read GetFieldProperties write SetFieldProperties;
     function    ValidateField      (const field_to_check:TFRE_DB_FIELD;const raise_exception:boolean=true):boolean;
     function    ValidateFieldI     (const field_to_check:IFRE_DB_FIELD;const raise_exception:boolean=true):boolean;
@@ -8703,6 +8717,16 @@ begin
       end;
 end;
 
+function TFRE_DB_FieldSchemeDefinition.GetMinValue: Int64;
+begin
+  Result:=FMinValue.AsInt64;
+end;
+
+function TFRE_DB_FieldSchemeDefinition.GetMaxValue: Int64;
+begin
+  Result:=FMaxValue.AsInt64;
+end;
+
 function TFRE_DB_FieldSchemeDefinition.GetAddConfirm: Boolean;
 begin
   Result := fp_AddConfirmation in FieldProperties;
@@ -8732,6 +8756,11 @@ end;
 function TFRE_DB_FieldSchemeDefinition.GetSubSchemeName: TFRE_DB_NameType;
 begin
   result := FSubSchemeName.AsString;
+end;
+
+function TFRE_DB_FieldSchemeDefinition.getHasMinMax: Boolean;
+begin
+  Result := fp_MinMax in FieldProperties;
 end;
 
 function TFRE_DB_FieldSchemeDefinition.getValidator: TFRE_DB_ClientFieldValidator;
@@ -8781,6 +8810,14 @@ begin
     FieldProperties := FieldProperties - [fp_AddConfirmation];
 end;
 
+procedure TFRE_DB_FieldSchemeDefinition.setHasMinMax(AValue: Boolean);
+begin
+  if AValue then
+    FieldProperties := FieldProperties + [fp_MinMax]
+  else
+    FieldProperties := FieldProperties - [fp_MinMax];
+end;
+
 procedure TFRE_DB_FieldSchemeDefinition.SetFieldName(AValue: TFRE_DB_NameType);
 begin
   FFieldName.AsString:=AValue;
@@ -8811,6 +8848,16 @@ procedure TFRE_DB_FieldSchemeDefinition.setEnum(AValue: TFRE_DB_Enum);
 begin
   Fenum := AValue;
   FEnumName.AsString:=AValue.ObjectName;
+end;
+
+procedure TFRE_DB_FieldSchemeDefinition.setMinValue(AValue: Int64);
+begin
+  FMinValue.AsInt64:=AValue;
+end;
+
+procedure TFRE_DB_FieldSchemeDefinition.setMaxValue(AValue: Int64);
+begin
+  FMaxValue.AsInt64:=AValue;
 end;
 
 procedure TFRE_DB_FieldSchemeDefinition.SetSubschemeName(AValue: TFRE_DB_NameType);
@@ -8976,6 +9023,8 @@ begin
   FValidatorParams     := Field('VP');
   FSubSchemeName       := Field('SS');
   FEnumName            := Field('EN');
+  FMinValue            := Field('MIN');
+  FMaxValue            := Field('MAX');
   FValidatorName       := Field('VN');
   FCalcmethodName      := Field('CN');
   FDepFields           := Field('DF').AsObject;
@@ -9023,6 +9072,20 @@ begin
     result := SetupFieldDef(is_required,is_multivalue,enum_key,validator_key,is_pass,add_confirm,validator_params.Implementor_HC as TFRE_DB_Object)
   else
     result := SetupFieldDef(is_required,is_multivalue,enum_key,validator_key,is_pass,add_confirm,nil);
+end;
+
+function TFRE_DB_FieldSchemeDefinition.SetupFieldDefNum(const is_required: boolean; const min_value: Int64; const max_value: Int64): TFRE_DB_FieldSchemeDefinition;
+begin
+  Required  :=is_required;
+  hasMinMax :=true;
+  MinValue  :=min_value;
+  MaxValue  :=max_value;
+  Result:=self;
+end;
+
+function TFRE_DB_FieldSchemeDefinition.SetupFieldDefNumI(const is_required: boolean; const min_value: Int64; const max_value: Int64): IFRE_DB_FieldSchemeDefinition;
+begin
+  Result:=SetupFieldDefNum(is_required,min_value,max_value);
 end;
 
 procedure TFRE_DB_FieldSchemeDefinition.SetCalcMethod(const calc_method: IFRE_DB_CalcMethod);

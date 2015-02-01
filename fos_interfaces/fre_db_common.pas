@@ -1957,6 +1957,7 @@ implementation
       domainEntries      : Integer;
       domainValue        : String;
       dcoll              : IFRE_DB_DERIVED_COLLECTION;
+      minMax             : TFRE_DB_Real64Array;
 
     procedure addObjects(const obj: IFRE_DB_Object);
     begin
@@ -2066,16 +2067,40 @@ implementation
 
               fdbft_UInt16,fdbft_UInt32,fdbft_UInt64,
               fdbft_Int16,fdbft_Int32,fdbft_Int64     :
-                with obj do
-                  inputField:=group.AddNumber.Describe(_getText(GetCaptionKey),prefix+GetfieldName,required,GetRequired,GetDisabled,GetHidden,'',0);
+                with obj do begin
+                  if FieldSchemeDefinition.hasMinMax then begin
+                    SetLength(minMax,2);
+                    minMax[0]:=FieldSchemeDefinition.GetMinValue;
+                    minMax[1]:=FieldSchemeDefinition.GetMaxValue;
+                  end else begin
+                    minMax:=nil;
+                  end;
+                  inputField:=group.AddNumber.Describe(_getText(GetCaptionKey),prefix+GetfieldName,required,GetRequired,GetDisabled,GetHidden,'',0,minMax);
+                end;
 
               fdbft_Currency :
-                with obj do
+                with obj do begin
+                  if FieldSchemeDefinition.hasMinMax then begin
+                    SetLength(minMax,2);
+                    minMax[0]:=FieldSchemeDefinition.GetMinValue;
+                    minMax[1]:=FieldSchemeDefinition.GetMaxValue;
+                  end else begin
+                    minMax:=nil;
+                  end;
                   inputField:=group.AddNumber.Describe(_getText(GetCaptionKey),prefix+GetfieldName,required,GetRequired,GetDisabled,Gethidden,'',2);
+                end;
 
               fdbft_Real64 :
-                 with obj do
+                with obj do begin
+                  if FieldSchemeDefinition.hasMinMax then begin
+                    SetLength(minMax,2);
+                    minMax[0]:=FieldSchemeDefinition.GetMinValue;
+                    minMax[1]:=FieldSchemeDefinition.GetMaxValue;
+                  end else begin
+                    minMax:=nil;
+                  end;
                    inputField:=group.AddNumber.Describe(_getText(GetCaptionKey),prefix+GetfieldName,required,GetRequired,obj.GetDisabled,obj.GetHidden);
+                end;
 
               fdbft_ObjLink,
               fdbft_String :

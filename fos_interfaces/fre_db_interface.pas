@@ -161,7 +161,7 @@ type
   TFRE_DB_MESSAGE_TYPE       = (fdbmt_error,fdbmt_warning,fdbmt_info,fdbmt_confirm,fdbmt_wait);
   TFRE_DB_FIELDTYPE_Array    = Array of TFRE_DB_FIELDTYPE;
   TFRE_DB_DISPLAY_TYPE_Array = Array of TFRE_DB_DISPLAY_TYPE;
-  TFRE_DB_Fieldproperty      = (fp_Required,fp_Multivalues,fp_PasswordField,fp_AddConfirmation);
+  TFRE_DB_Fieldproperty      = (fp_Required,fp_Multivalues,fp_PasswordField,fp_AddConfirmation,fp_MinMax);
   TFRE_DB_Fieldproperties    = set of TFRE_DB_Fieldproperty;
   TFRE_DB_FieldDepVisibility = (fdv_visible,fdv_hidden,fdv_none);
 
@@ -1105,27 +1105,32 @@ type
     procedure GetFinalRightTransformFunction (out   func : IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION;out langres: TFRE_DB_StringArray);
   end;
 
+  { IFRE_DB_FieldSchemeDefinition }
+
   IFRE_DB_FieldSchemeDefinition=interface //(IFRE_DB_BASE)
     ['IFDBFSD']
     function   GetFieldName        : TFRE_DB_NameType;
     function   GetFieldType        : TFRE_DB_FIELDTYPE;
+    function   GetHasMinMax        : Boolean;
+    function   GetMaxValue         : Int64;
+    function   GetMinValue         : Int64;
     function   GetSubSchemeName    : TFRE_DB_NameType;
     function   GetMultiValues      : Boolean;
     function   GetRequired         : Boolean;
     function   GetValidator        (var validator: IFRE_DB_ClientFieldValidator):boolean;
     function   getValidatorParams  : IFRE_DB_Object;
     function   GetEnum             (var enum : IFRE_DB_Enum) : boolean;
+    procedure  SetHasMinMax        (AValue: Boolean);
     procedure  SetMultiValues      (AValue: Boolean);
     procedure  SetRequired         (AValue: Boolean);
     function   GetIsPass           : Boolean;
     function   GetAddConfirm       : Boolean;
 
-    property   IsPass              :Boolean read GetIsPass;
-    property   AddConfirm          :Boolean read GetAddConfirm;
     function   GetFieldProperties  : TFRE_DB_FieldProperties;
     procedure  SetFieldProperties  (AValue: TFRE_DB_FieldProperties);
 
     function   SetupFieldDef      (const is_required:boolean;const is_multivalue:boolean=false;const enum_key:TFRE_DB_NameType='';const validator_key:TFRE_DB_NameType='';const is_pass:Boolean=false; const add_confirm:Boolean=false ; const validator_params : IFRE_DB_Object=nil):IFRE_DB_FieldSchemeDefinition;
+    function   SetupFieldDefNum   (const is_required:boolean;const min_value:Int64;const max_value:Int64):IFRE_DB_FieldSchemeDefinition;
     procedure  SetCalcMethod      (const calc_method:IFRE_DB_CalcMethod);
     function   IsACalcField       : Boolean;
     procedure  addDepField        (const fieldName: TFRE_DB_String;const disablesField: Boolean=true);
@@ -1136,10 +1141,15 @@ type
     function   GetSubScheme       :IFRE_DB_SchemeObject;
     property   Required           :Boolean read GetRequired write SetRequired;
     property   MultiValues        :Boolean read GetMultiValues write SetMultiValues;
+    property   hasMinMax          :Boolean read GetHasMinMax write SetHasMinMax;
     function   ValidateField      (const field_to_check:IFRE_DB_FIELD;const raise_exception:boolean=true):boolean;
     procedure  ForAllDepfields    (const depfielditerator : TFRE_DB_Depfielditerator);
     procedure  ForAllEnumDepfields(const depfielditerator : TFRE_DB_EnumDepfielditerator);
     property   FieldProperties    :TFRE_DB_FieldProperties read GetFieldProperties write SetFieldProperties;
+    property   minValue            :Int64 read GetMinValue;
+    property   maxValue            :Int64 read GetMaxValue;
+    property   IsPass              :Boolean read GetIsPass;
+    property   AddConfirm          :Boolean read GetAddConfirm;
   end;
 
   IFRE_DB_NAMED_OBJECT = interface(IFRE_DB_Object)

@@ -455,6 +455,11 @@ implementation
       jsContentAdd('" ,max: '+co.Field('minMax').AsStringArr[1]+'"+');
     end;
     jsContentAdd('" }''"+');
+    if co.FieldExists('minMax') then begin
+      jsContentAdd('"  data-dojo-props=''"+');
+      jsContentAdd('" placeHolder:\"'+co.Field('minMax').AsStringArr[0]+'..'+co.Field('minMax').AsStringArr[1]+'\"''"+');
+    end;
+
     if co.Field('disabled').AsBoolean then begin
       jsContentAdd('" disabled"+');
     end;
