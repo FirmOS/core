@@ -20,7 +20,11 @@ type
   end;
 
 var
+  {$IFDEF CPU64}
     g:int64;
+  {$ELSE}
+    g:longword;
+  {$ENDIF}
 
 { TAddThread }
 
@@ -28,7 +32,11 @@ procedure TAddThread.Execute;
 var j:integer;
 begin
  for j:=0 to 100000-1 do begin
-  FOS_IL_ExchangeAdd64(g,5);
+  {$IFDEF CPU64}
+    FOS_IL_ExchangeAdd64(g,5);
+ {$ELSE}
+    FOS_IL_ExchangeAdd(g,5);
+ {$ENDIF}
  end;
 end;
 
