@@ -3424,7 +3424,7 @@ end;
   function  FREDB_G2SB                           (const uid    : TFRE_DB_GUID):ShortString; { uid to binary shortstring }
   function  FREDB_SB2G                           (const uid_sb : ShortString):TFRE_DB_GUID; { binary shortstring to uid}
   function  FREDB_ExtractUidsfromRightArray      (const str:TFRE_DB_StringArray;const rightname:TFRE_DB_STRING):TFRE_DB_GUIDArray;
-  function  FREDB_H2GArray               (const str:string):TFRE_DB_GUIDArray;
+  function  FREDB_H2GArray                       (const str:string):TFRE_DB_GUIDArray;
   function  FREDB_String2Bool                    (const str:string):boolean;
   function  FREDB_SplitRefLinkDescription        (key_description : TFRE_DB_NameTypeRL ; out rl_field,rl_scheme : TFRE_DB_NameTypeRL):boolean; { True if outbound RL}
 

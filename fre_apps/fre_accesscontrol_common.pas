@@ -3769,7 +3769,9 @@ end;
 
 class procedure TFRE_COMMON_ACCESSCONTROL_APP.InstallDBObjects4Domain(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TFRE_DB_GUID);
 var
-  role  : IFRE_DB_ROLE;
+  role      : IFRE_DB_ROLE;
+  notdefault: Boolean;
+  group     : IFRE_DB_GROUP;
 begin
   inherited InstallDBObjects4Domain(conn, currentVersionId, domainUID);
 
@@ -3886,6 +3888,12 @@ begin
     CheckDbResult(conn.FetchRole('ADMINUSERGROUP',domainUID,role));
     role.SetIsInternal(true);
     CheckDbResult(conn.UpdateRole(role));
+
+    notdefault:=conn.GetDefaultDomainUID<>domainUID;
+    CheckDbResult(conn.FetchGroup('ACADMINS',domainUID,group));
+    group.isProtected:=true;
+    if notdefault then group.isDisabled:=true;
+    CheckDbResult(conn.UpdateGroup(group));
   end;
 end;
 

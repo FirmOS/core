@@ -193,6 +193,9 @@ begin
 end;
 
 class procedure TFRE_COMMON_TRANSLATION_APP.InstallDBObjects4Domain(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TFRE_DB_GUID);
+var
+  notdefault: Boolean;
+  group     : IFRE_DB_GROUP;
 begin
   inherited InstallDBObjects4Domain(conn, currentVersionId, domainUID);
 
@@ -209,6 +212,11 @@ begin
     CheckDbResult(conn.AddGroup('TRANSLATIONADMINS','Admins of Translation App','Translation Admins',domainUID),'could not create admins group');
     CheckDbResult(conn.AddRolesToGroup('TRANSLATIONADMINS',domainUID,TFRE_DB_StringArray.Create('ADMINTRANSLATION')),'could not add role ADMINTRANSLATION for group Admins');
 
+    notdefault:=conn.GetDefaultDomainUID<>domainUID;
+    CheckDbResult(conn.FetchGroup('TRANSLATIONADMINS',domainUID,group));
+    group.isProtected:=true;
+    if notdefault then group.isDisabled:=true;
+    CheckDbResult(conn.UpdateGroup(group));
   end;
 end;
 
