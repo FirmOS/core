@@ -721,55 +721,84 @@ implementation
     labelclass    : String;
     addGroupId    : String;
     hasCloseButton: Boolean;
-  begin
-    if elem is TFRE_DB_INPUT_BLOCK_DESC then begin
-      jsContentAdd('"<tr id='''+elem.Field('id').AsString+'_tr''><td colspan=2>"+');
+
+    function _checkBlockChildren(const block: TFRE_DB_INPUT_BLOCK_DESC):Boolean;
+    var
+      i : Integer;
+    begin
+      Result:=false;
       for i := 0 to elem.Field('elements').ValueCount - 1 do begin
-        if i=0 then begin
-          blockclass:='firmosFormBlockFirst';
-        end else begin
-          if i=elem.Field('elements').ValueCount - 1 then begin
-            blockclass:='firmosFormBlockLast';
-          end else begin
-            blockclass:='firmosFormBlockMiddle';
-          end;
+        if block.Field('elements').AsObjectItem[i].Implementor_HC is TFRE_DB_INPUT_BLOCK_DESC then begin
+          Result:=_checkBlockChildren(block.Field('elements').AsObjectItem[i].Implementor_HC as TFRE_DB_INPUT_BLOCK_DESC);
+          if Result then exit;
         end;
-        jsContentAdd('"<div style=''width:'+FloatToStrF(Trunc(elem.Field('elements').AsObjectItem[i].Field('relSize').AsInt16 / elem.Field('sizeSum').AsInt16 * 10000) / 100,ffFixed,3,2)+'%; float:left;''>"+');
-        jsContentAdd('"<div class='''+blockclass+'''>"+');
-        jsContentAdd('"<table class=''firmosFormTableIB'' style=''width:100%''>"+');
-        _handleFormElement(session,elem.Field('elements').AsObjectItem[i].Implementor_HC as TFRE_DB_CONTENT_DESC,formName,stores,hiddenFields,groupId,hidden,hideEmptyGroups,isDialog);
-        jsContentAdd('"</table></div>"+');
-        jsContentAdd('"</div>"+');
+        if block.Field('elements').AsObjectItem[i].FieldExists('required') and block.Field('elements').AsObjectItem[i].Field('required').AsBoolean then begin
+          Result:=true;
+          exit;
+        end;
       end;
-      jsContentAdd('"</td></tr>"+');
-    end else begin
-      if elem is TFRE_DB_INPUT_GROUP_DESC then begin
-        if not hideEmptyGroups or (elem.Field('elements').ValueCount>0) then begin
-          //elem.FieldExists('loadFunc')
-          if elem.Field('collapsible').AsBoolean then begin
-            jsContentAdd('"<tr class=''firmosFormGroupHeaderCollapsible'' id='''+elem.Field('id').AsString+'_tr''><td colspan=2 onclick=''G_UI_COM.toggleFormGroupStatus(\"'+formName+'\",\"'+elem.UID_String+'\");''>"+');
-            if groupId<>'' then addGroupId:=' ';
-            addGroupId:=addGroupId + elem.UID_String;
-            if elem.Field('collapsed').AsBoolean then begin
-              classl:='firmosFormGroupShowLeft';
-              classr:='firmosFormGroupShowRight';
-            end else begin
-              classl:='firmosFormGroupHideLeft';
-              classr:='firmosFormGroupHideRight';
-            end;
-            jsContentAdd('"<div id='''+elem.UID_String+'_tl'' class='''+classl+'''></div><div id='''+elem.UID_String+'_tr'' class='''+classr+'''></div><div class=''firmosFormGroupHeaderElementCollapsible''>'+elem.Field('caption').AsString+'</div>"+');
-            jsContentAdd('"</td></tr>"+');
+    end;
+
+  begin
+    if elem is TFRE_DB_INPUT_GROUP_DESC then begin
+      if not hideEmptyGroups or (elem.Field('elements').ValueCount>0) then begin
+        //elem.FieldExists('loadFunc')
+        if elem.Field('collapsible').AsBoolean then begin
+          jsContentAdd('"<tr class=''firmosFormGroupHeaderCollapsible'' id='''+elem.Field('id').AsString+'_tr''><td colspan=2 onclick=''G_UI_COM.toggleFormGroupStatus(\"'+formName+'\",\"'+elem.UID_String+'\");''>"+');
+          if groupId<>'' then addGroupId:=' ';
+          addGroupId:=addGroupId + elem.UID_String;
+          if elem.Field('collapsed').AsBoolean then begin
+            classl:='firmosFormGroupShowLeft';
+            classr:='firmosFormGroupShowRight';
           end else begin
-            if elem.Field('caption').AsString<>'' then begin
-              jsContentAdd('"<tr class=''firmosFormGroupHeader'' id='''+elem.Field('id').AsString+'_tr''><td colspan=2>"+');
-              jsContentAdd('"<div class=''firmosFormGroupHeaderElement''>'+elem.Field('caption').AsString+'</div>"+');
-              jsContentAdd('"</td></tr>"+');
-            end;
+            classl:='firmosFormGroupHideLeft';
+            classr:='firmosFormGroupHideRight';
           end;
-          for i := 0 to elem.Field('elements').ValueCount - 1 do begin
-            _handleFormElement(session,elem.Field('elements').AsObjectItem[i].Implementor_HC as TFRE_DB_CONTENT_DESC,formName,stores,hiddenFields,groupId+addGroupId,elem.Field('collapsed').AsBoolean or hidden,hideEmptyGroups,isDialog);
+          jsContentAdd('"<div id='''+elem.UID_String+'_tl'' class='''+classl+'''></div><div id='''+elem.UID_String+'_tr'' class='''+classr+'''></div><div class=''firmosFormGroupHeaderElementCollapsible''>'+elem.Field('caption').AsString+'</div>"+');
+          jsContentAdd('"</td></tr>"+');
+        end else begin
+          if elem.Field('caption').AsString<>'' then begin
+            jsContentAdd('"<tr class=''firmosFormGroupHeader'' id='''+elem.Field('id').AsString+'_tr''><td colspan=2>"+');
+            jsContentAdd('"<div class=''firmosFormGroupHeaderElement''>'+elem.Field('caption').AsString+'</div>"+');
+            jsContentAdd('"</td></tr>"+');
           end;
         end;
+        for i := 0 to elem.Field('elements').ValueCount - 1 do begin
+          _handleFormElement(session,elem.Field('elements').AsObjectItem[i].Implementor_HC as TFRE_DB_CONTENT_DESC,formName,stores,hiddenFields,groupId+addGroupId,elem.Field('collapsed').AsBoolean or hidden,hideEmptyGroups,isDialog);
+        end;
+      end;
+    end else begin
+      if elem is TFRE_DB_INPUT_BLOCK_DESC then begin
+        if elem.Field('caption').AsString<>'' then begin
+          if _checkBlockChildren(elem as TFRE_DB_INPUT_BLOCK_DESC) then begin
+            labelclass:='firmosFormLabelRequired';
+          end else begin
+            labelclass:='firmosFormLabel';
+          end;
+          jsContentAdd('"<td class=''firmosFormLabelTD''>"+');
+          jsContentAdd('"<label for='''+elem.Field('id').AsString+''' id='''+elem.Field('id').AsString+'_label'' class='''+labelclass+'''>'+elem.Field('caption').AsString+': </label>"+');
+          jsContentAdd('"</td><td>"+');
+        end else begin
+          jsContentAdd('"<tr id='''+elem.Field('id').AsString+'''><td colspan=2>"+');
+        end;
+        for i := 0 to elem.Field('elements').ValueCount - 1 do begin
+          if i=0 then begin
+            blockclass:='firmosFormBlockFirst';
+          end else begin
+            if i=elem.Field('elements').ValueCount - 1 then begin
+              blockclass:='firmosFormBlockLast';
+            end else begin
+              blockclass:='firmosFormBlockMiddle';
+            end;
+          end;
+          jsContentAdd('"<div style=''width:'+FloatToStrF(Trunc(elem.Field('elements').AsObjectItem[i].Field('relSize').AsInt16 / elem.Field('sizeSum').AsInt16 * 10000) / 100,ffFixed,3,2)+'%; float:left;''>"+');
+          jsContentAdd('"<div class='''+blockclass+'''>"+');
+          jsContentAdd('"<table class=''firmosFormTableIB'' style=''width:100%''>"+');
+          _handleFormElement(session,elem.Field('elements').AsObjectItem[i].Implementor_HC as TFRE_DB_CONTENT_DESC,formName,stores,hiddenFields,groupId,hidden,hideEmptyGroups,isDialog);
+          jsContentAdd('"</table></div>"+');
+          jsContentAdd('"</div>"+');
+        end;
+        jsContentAdd('"</td></tr>"+');
       end else begin
         if elem.Field('hidden').AsBoolean then begin
           SetLength(hiddenFields,Length(hiddenFields)+1);

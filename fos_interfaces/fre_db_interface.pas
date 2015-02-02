@@ -690,7 +690,7 @@ type
   TFRE_DB_Object_Properties    = (fop_SYSTEM,fop_READ_ONLY,fop_VOLATILE,fop_STORED_IMMUTABLE,fop_IN_SYSTEM_DB); { fop_SYSTEM=static/read only, fop_IN_SYSTEM_DB = from System DB masterdata}
   TFRE_DB_Object_PropertySet   = set of TFRE_DB_Object_Properties;
 
-  TFRE_InputGroupDefType=(igd_Bad,igd_Field,igd_UsedGroup,igd_UsedSubGroup);
+  TFRE_InputGroupDefType=(igd_Bad,igd_Field,igd_UsedGroup,igd_UsedSubGroup,igd_BlockGroup);
 
   TFRE_DB_SESSIONSTATE  =(sta_BAD,sta_ActiveNew,sta_ReUsed);
 
@@ -3022,14 +3022,15 @@ end;
   { IFRE_DB_InputGroupSchemeDefinition }
 
   IFRE_DB_InputGroupSchemeDefinition=interface
-    function  GetCaptionKey      : TFRE_DB_NameType;
-    function  Setup              (const caption: TFRE_DB_String):IFRE_DB_InputGroupSchemeDefinition;
-    function  GetParentScheme    : IFRE_DB_SchemeObject;
-    procedure AddInput           (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String=''; const disabled: Boolean=false;const hidden:Boolean=false; const default_value:String=''; const field_backing_collection: TFRE_DB_String='';const fbCollectionsIsDerivedCollection:Boolean=false; const chooser_type:TFRE_DB_CHOOSER_DH=dh_chooser_combo; const standard_coll: TFRE_DB_STANDARD_COLL=coll_NONE; const chooserAddEmptyForRequired: Boolean=false; const validator_key:TFRE_DB_NameType=''; const validator_params : IFRE_DB_Object=nil);
-    procedure AddDomainChooser   (const schemefield: TFRE_DB_String; const std_right:TFRE_DB_STANDARD_RIGHT; const rightClasstype: TClass; const hideSingle: Boolean; const cap_trans_key: TFRE_DB_String='');
-    procedure UseInputGroup      (const scheme,group: TFRE_DB_String; const addPrefix: TFRE_DB_String='';const as_gui_subgroup:boolean=false ; const collapsible:Boolean=false;const collapsed:Boolean=false);
-    property  CaptionKey         : TFRE_DB_NameType read GetCaptionKey;
-    function  GroupFields        : IFRE_DB_FieldDef4GroupArr;
+    function  GetCaptionKey        : TFRE_DB_NameType;
+    function  Setup                (const caption: TFRE_DB_String):IFRE_DB_InputGroupSchemeDefinition;
+    function  GetParentScheme      : IFRE_DB_SchemeObject;
+    procedure AddInput             (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String=''; const disabled: Boolean=false;const hidden:Boolean=false; const default_value:String=''; const field_backing_collection: TFRE_DB_String='';const fbCollectionsIsDerivedCollection:Boolean=false; const chooser_type:TFRE_DB_CHOOSER_DH=dh_chooser_combo; const standard_coll: TFRE_DB_STANDARD_COLL=coll_NONE; const chooserAddEmptyForRequired: Boolean=false; const validator_key:TFRE_DB_NameType=''; const validator_params : IFRE_DB_Object=nil);
+    procedure AddDomainChooser     (const schemefield: TFRE_DB_String; const std_right:TFRE_DB_STANDARD_RIGHT; const rightClasstype: TClass; const hideSingle: Boolean; const cap_trans_key: TFRE_DB_String='');
+    procedure UseInputGroup        (const scheme,group: TFRE_DB_String; const addPrefix: TFRE_DB_String='';const as_gui_subgroup:boolean=false ; const collapsible:Boolean=false;const collapsed:Boolean=false);
+    procedure UseInputGroupAsBlock (const scheme,group: TFRE_DB_String);
+    property  CaptionKey           : TFRE_DB_NameType read GetCaptionKey;
+    function  GroupFields          : IFRE_DB_FieldDef4GroupArr;
   end;
 
   TFRE_DB_OnCheckUserNamePassword     = function  (username,pass:TFRE_DB_String) : TFRE_DB_Errortype of object;

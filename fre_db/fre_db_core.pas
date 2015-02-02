@@ -1063,11 +1063,12 @@ type
     function    _ObjectIsCodeclassOnlyAndHasNoScheme: boolean; override;
     procedure   InternalSetup; override;
   public
-    function    SetupGroup         (const cap_key: TFRE_DB_String):TFRE_DB_InputGroupSchemeDefinition;
-    procedure   AddInput           (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String=''; const disabled: Boolean=false;const hidden:Boolean=false; const default_value:String=''; const field_backing_collection: TFRE_DB_String='';const fbCollectionIsDerivedCollection:Boolean=false; const chooser_type:TFRE_DB_CHOOSER_DH=dh_chooser_combo;const standard_coll:TFRE_DB_STANDARD_COLL=coll_NONE;const chooserAddEmptyForRequired: Boolean=false; const validator_key:TFRE_DB_NameType=''; const validator_params : IFRE_DB_Object=nil);
-    procedure   AddDomainChooser   (const schemefield: TFRE_DB_String; const std_right:TFRE_DB_STANDARD_RIGHT; const rightClasstype: TClass; const hideSingle: Boolean; const cap_trans_key: TFRE_DB_String='');
-    procedure   UseInputGroup      (const scheme,group: TFRE_DB_String; const addPrefix: TFRE_DB_String='';const as_gui_subgroup:boolean=false ; const collapsible:Boolean=false;const collapsed:Boolean=false);
-    function    GroupFields        : IFRE_DB_FieldDef4GroupArr;
+    function    SetupGroup           (const cap_key: TFRE_DB_String):TFRE_DB_InputGroupSchemeDefinition;
+    procedure   AddInput             (const schemefield: TFRE_DB_String; const cap_trans_key: TFRE_DB_String=''; const disabled: Boolean=false;const hidden:Boolean=false; const default_value:String=''; const field_backing_collection: TFRE_DB_String='';const fbCollectionIsDerivedCollection:Boolean=false; const chooser_type:TFRE_DB_CHOOSER_DH=dh_chooser_combo;const standard_coll:TFRE_DB_STANDARD_COLL=coll_NONE;const chooserAddEmptyForRequired: Boolean=false; const validator_key:TFRE_DB_NameType=''; const validator_params : IFRE_DB_Object=nil);
+    procedure   AddDomainChooser     (const schemefield: TFRE_DB_String; const std_right:TFRE_DB_STANDARD_RIGHT; const rightClasstype: TClass; const hideSingle: Boolean; const cap_trans_key: TFRE_DB_String='');
+    procedure   UseInputGroup        (const scheme,group: TFRE_DB_String; const addPrefix: TFRE_DB_String='';const as_gui_subgroup:boolean=false ; const collapsible:Boolean=false;const collapsed:Boolean=false);
+    procedure   UseInputGroupAsBlock (const scheme,group: TFRE_DB_String);
+    function    GroupFields          : IFRE_DB_FieldDef4GroupArr;
   end;
 
   { TFRE_DB_SchemeObject }
@@ -4377,7 +4378,25 @@ begin
   fdg.FieldProperties := props;
 
   fcount := FInputs.FieldCount(true,true);
-  FInputs.Field('UG'+inttostr(fcount)).AsObject := fdg;
+  FInputs.Field('IN'+inttostr(fcount)).AsObject := fdg;
+end;
+
+procedure TFRE_DB_InputGroupSchemeDefinition.UseInputGroupAsBlock(const scheme, group: TFRE_DB_String);
+var
+  fdg      : TFRE_DB_FieldDef4Group;
+  props    : TFRE_DB_InputGroupFieldproperties;
+  fcount   : NativeInt;
+begin
+  fdg   := TFRE_DB_FieldDef4Group.Create;
+  props := [];
+  fdg.FType.AsByte := ord(igd_BlockGroup);
+
+  fdg.Fscheme.AsString  := scheme;
+  fdg.FGroup.AsString   := uppercase(group);
+  fdg.FieldProperties := props;
+
+  fcount := FInputs.FieldCount(true,true);
+  FInputs.Field('IN'+inttostr(fcount)).AsObject := fdg;
 end;
 
 function TFRE_DB_InputGroupSchemeDefinition.GroupFields: IFRE_DB_FieldDef4GroupArr;
