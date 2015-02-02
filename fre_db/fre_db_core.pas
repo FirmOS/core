@@ -1855,7 +1855,6 @@ type
     function   ItemCount                       : Int64;
     function   SetupQryDefinitionBasic         (const start, endPos: NativeInt): TFRE_DB_QUERY_DEF;
     function   SetupQryDefinitionFromWeb       (const web_input : IFRE_DB_Object):TFRE_DB_QUERY_DEF;
-    function   ExecuteQryLocked                (const qrydef : TFRE_DB_QUERY_DEF ; out qry :TFRE_DB_QUERY_BASE):NativeInt; { the base and thus implicitly the filtered data is returned locked, does not store the query }
     function   ExecutePointQry                 (const qrydef : TFRE_DB_QUERY_DEF):IFRE_DB_Object; { the base and thus implicitly the filtered data is returned locked, does not store the query }
   published
     function   WEB_GET_GRID_DATA               (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object; { request a range from the associated range manager      }
@@ -8093,16 +8092,29 @@ end;
 
 function TFRE_DB_DERIVED_COLLECTION.ItemCount: Int64;
 var qrydef : TFRE_DB_QUERY_DEF;
-    qry    : TFRE_DB_QUERY_BASE;
+    query    : TFRE_DB_QUERY_BASE;
+    e        : IFOS_E;
 begin
-  abort;
-  //qrydef := SetupQryDefinitionBasic(0,0);
-  //try
-  //  result := ExecuteQryLocked(qrydef,qry);
-  //finally
-  //  qry.UnlockQryData;
-  //  qry.Free;
-  //end;
+  try
+    MustBeInitialized;
+    FDCollFiltersDyn.RemoveAllFilters;
+    qrydef     := SetupQryDefinitionBasic(-1,-1); { Itemcount }
+    query      := GFRE_DB_TCDM.GenerateQueryFromQryDef(qrydef);
+    FLastQryID := query.GetQueryID;
+    try
+      GFRE_TF.Get_Event(e);
+      GFRE_DB_TCDM.cs_InvokeQry(query,nil,nil,0,e);
+      e.WaitFor;
+      e.Finalize;
+      result := query.GetTotalCount;
+    finally
+      query.free;
+    end;
+  except on e:exception do
+    begin
+      raise;
+    end;
+  end;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.SetupQryDefinitionBasic(const start, endPos: NativeInt): TFRE_DB_QUERY_DEF;
@@ -8339,124 +8351,86 @@ begin
   result := qrydef;
 end;
 
-function TFRE_DB_DERIVED_COLLECTION.ExecuteQryLocked(const qrydef: TFRE_DB_QUERY_DEF; out qry: TFRE_DB_QUERY_BASE): NativeInt;
-var
-    //query_base_data : TFRE_DB_TRANSFORMED_ORDERED_DATA;
-    query           : TFRE_DB_QUERY_BASE;
-    qry_ok          : boolean;
-
-begin
-  abort;
-  //try
-  //  result := 0;
-  //  qry_ok := false;
-  //  MustBeInitialized;
-  //  query  := GFRE_DB_TCDM.GenerateQueryFromQryDef(qrydef);
-  //  GFRE_DB_TCDM.LockManager;
-  //  try
-  //    try
-  //      if not GFRE_DB_TCDM.GetTransformedDataLocked(query,query_base_data) then
-  //        GFRE_DB_TCDM.NewTransformedDataLocked(query,self,query_base_data);
-  //      query.SetBaseOrderedData(query_base_data,FDC_Session.GetSessionID);
-  //      result := query.ExecuteQuery(nil,self);
-  //      qry_ok := true;
-  //      qry    := query;
-  //    finally
-  //      GFRE_DB_TCDM.UnlockManager;
-  //    end;
-  //  finally
-  //    if not qry_ok then
-  //      begin
-  //        query.Free;
-  //        qry := nil;
-  //      end
-  //  end;
-  //except
-  //  raise;
-  //end;
-end;
-
 function TFRE_DB_DERIVED_COLLECTION.ExecutePointQry(const qrydef: TFRE_DB_QUERY_DEF): IFRE_DB_Object;
-var
-    //query_base_data : TFRE_DB_TRANS_RESULT_BASE;
-    query           : TFRE_DB_QUERY_BASE;
-    qry_ok          : boolean;
-
-    procedure Iterator(const obj : IFRE_DB_Object);
-    begin
-      result := obj;
-    end;
-
+var query    : TFRE_DB_QUERY_BASE;
+    e        : IFOS_E;
 begin
-  abort;
-  //try
-  //  result := nil;
-  //  qry_ok := false;
-  //  MustBeInitialized;
-  //  FDCollFiltersDyn.RemoveAllFilters;
-  //  query  := GFRE_DB_TCDM.GenerateQueryFromQryDef(qrydef);
-  //  GFRE_DB_TCDM.LockManager;
-  //  try
-  //    try
-  //      if not GFRE_DB_TCDM.GetTransformedDataLocked(query,query_base_data) then
-  //        GFRE_DB_TCDM.NewTransformedDataLocked(query,self,query_base_data);
-  //      query.SetBaseOrderedData(query_base_data,FDC_Session.GetSessionID);
-  //      query.ExecutePointQuery(@Iterator);
-  //      qry_ok := true;
-  //    finally
-  //      query.UnlockQryData;
-  //      GFRE_DB_TCDM.UnlockManager;
-  //    end;
-  //  finally
-  //    query.Free;
-  //  end;
-  //except
-  //  raise;
-  //end;
+  try
+    MustBeInitialized;
+    FDCollFiltersDyn.RemoveAllFilters;
+    query      := GFRE_DB_TCDM.GenerateQueryFromQryDef(qrydef);
+    FLastQryID := query.GetQueryID;
+    try
+      GFRE_TF.Get_Event(e);
+      GFRE_DB_TCDM.cs_InvokeQry(query,nil,nil,0,e);
+      e.WaitFor;
+      e.Finalize;
+      if Length(query.GetResultData)>0 then
+        result := query.GetResultData[0]
+      else
+        result := nil;
+    finally
+      query.free;
+    end;
+  except on e:exception do
+    begin
+      raise;
+    end;
+  end;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.First: IFRE_DB_Object;
 var qrydef : TFRE_DB_QUERY_DEF;
+    frt    : IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION;
+    lang   : TFRE_DB_StringArray;
 begin
-  abort;
-  //qrydef := SetupQryDefinitionBasic(-1,1);
-  //result := ExecutePointQry(qrydef);
-  //if assigned(result) then
-  //  FinalRightTransform(FDC_Session,result);
+  qrydef := SetupQryDefinitionBasic(-2,-2);
+  result := ExecutePointQry(qrydef);
+  GetDeriveTransformation.GetFinalRightTransformFunction(frt,lang);
+  if assigned(result) then
+    FDC_Session.FinalRightTransform(result,frt,lang);
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.Last: IFRE_DB_Object;
 var qrydef : TFRE_DB_QUERY_DEF;
+    frt    : IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION;
+    lang   : TFRE_DB_StringArray;
 begin
-  abort;
-  //qrydef := SetupQryDefinitionBasic(-2,1);
-  //result := ExecutePointQry(qrydef);
-  //if assigned(result) then
-  //  FinalRightTransform(FDC_Session,result);
+  qrydef := SetupQryDefinitionBasic(-3,-3);
+  result := ExecutePointQry(qrydef);
+  GetDeriveTransformation.GetFinalRightTransformFunction(frt,lang);
+  if assigned(result) then
+    FDC_Session.FinalRightTransform(result,frt,lang);
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.FetchIndexed(const idx: NativeInt): IFRE_DB_Object;
 var qrydef : TFRE_DB_QUERY_DEF;
+    frt    : IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION;
+    lang   : TFRE_DB_StringArray;
 begin
-  abort;
-  //if idx<0 then
-  //  raise EFRE_DB_Exception.Create(edb_ERROR,'index must be greater then zero');
-  //qrydef := SetupQryDefinitionBasic(idx,1);
-  //result := ExecutePointQry(qrydef);
-  //if assigned(result) then
-  //  FinalRightTransform(FDC_Session,result);
+  qrydef := SetupQryDefinitionBasic(idx,idx);
+  result := ExecutePointQry(qrydef);
+  GetDeriveTransformation.GetFinalRightTransformFunction(frt,lang);
+  if assigned(result) then
+    FDC_Session.FinalRightTransform(result,frt,lang);
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.FetchInDerived(const ouid: TFRE_DB_GUID; out dbo: IFRE_DB_Object): boolean;
 var qrydef : TFRE_DB_QUERY_DEF;
+    frt    : IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION;
+    lang   : TFRE_DB_StringArray;
 begin
-  abort;
-  //qrydef := SetupQryDefinitionBasic(0,0);
-  //qrydef.OnlyOneUID := ouid;
-  //dbo := ExecutePointQry(qrydef);
-  //result := assigned(dbo);
-  //if result then
-  //  FinalRightTransform(FDC_Session,dbo);
+  qrydef := SetupQryDefinitionBasic(-4,-4);
+  qrydef.OnlyOneUID := ouid;
+  dbo := ExecutePointQry(qrydef);
+  GetDeriveTransformation.GetFinalRightTransformFunction(frt,lang);
+  if assigned(dbo) then
+    begin
+      FDC_Session.FinalRightTransform(dbo,frt,lang);
+      result := true;
+    end
+  else
+    result := false;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.CollectionName(const unique: boolean): TFRE_DB_NameType;
@@ -8580,7 +8554,7 @@ begin
     query      := GFRE_DB_TCDM.GenerateQueryFromQryDef(qrydef);
     FLastQryID := query.GetQueryID;
     ses.GetSyncWaitEvent(e);
-    GFRE_DB_TCDM.cs_InvokeQry(query,GetDeriveTransformation,ses.GetSessionID,ses.GetSessionChannelGroup,ses.GetCurrentRequestID,e);
+    GFRE_DB_TCDM.cs_InvokeQry(query,GetDeriveTransformation,ses.GetSessionChannelGroup,ses.GetCurrentRequestID,e);
   except on e:exception do
     begin
       writeln('GRID DATA EXCEPTION : ',e.Message,'   ',FName,' ',input.DumpToString());
@@ -8609,7 +8583,7 @@ end;
 
 function TFRE_DB_DERIVED_COLLECTION.WEB_DESTROY_STORE(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 begin
-  GFRE_DB_TCDM.cs_DropAllQueryRanges(FLastQryID.GetKeyAsString,false,true);
+  GFRE_DB_TCDM.cs_DropAllQueryRanges(FLastQryID.GetKeyAsString,false);
   result := GFRE_DB_NIL_DESC;
 end;
 

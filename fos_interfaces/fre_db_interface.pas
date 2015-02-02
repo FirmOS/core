@@ -988,6 +988,7 @@ type
     DataKey   : TFRE_DB_TRANS_COLL_DATA_KEY;
     procedure Setup4QryId      (const sid : TFRE_DB_SESSION_ID ; const ok : TFRE_DB_TRANS_COLL_DATA_KEY ; const fk : TFRE_DB_TRANS_COLL_FILTER_KEY);
     function  GetKeyAsString   : TFRE_DB_CACHE_DATA_KEY; { sessionid@parentcollection/derivedcollection/reflinkspec/orderhash/filterhash }
+    procedure SetupFromQryID   (qryid : TFRE_DB_CACHE_DATA_KEY);
   end;
 
 
@@ -2251,9 +2252,9 @@ end;
     function   GetNewOrderDefinition        : TFRE_DB_DC_ORDER_DEFINITION_BASE; virtual ; abstract;
     function   GetNewFilterDefinition       (const filter_db_name : TFRE_DB_NameType): TFRE_DB_DC_FILTER_DEFINITION_BASE; virtual; abstract;
     procedure  cs_RemoveQueryRange          (const qry_id: TFRE_DB_CACHE_DATA_KEY; const start_idx,end_index : NativeInt); virtual; abstract;
-    procedure  cs_DropAllQueryRanges        (const qry_id: TFRE_DB_CACHE_DATA_KEY;const whole_session,all_filterings : boolean); virtual; abstract; { is a sessionid only }
-    procedure  cs_InboundNotificationBlock  (const dbname: TFRE_DB_NameType    ; const block : IFRE_DB_Object); virtual; abstract;
-    procedure  cs_InvokeQry                 (const qry: TFRE_DB_QUERY_BASE     ; const transform: IFRE_DB_SIMPLE_TRANSFORM; const sessionid: TFRE_DB_SESSION_ID ; const return_cg: IFRE_APSC_CHANNEL_GROUP;const ReqID : Qword ; const sync_event : IFOS_E); virtual ; abstract;
+    procedure  cs_DropAllQueryRanges        (const qry_id: TFRE_DB_CACHE_DATA_KEY ; const whole_session: boolean); virtual; abstract; { is a sessionid only }
+    procedure  cs_InboundNotificationBlock  (const dbname: TFRE_DB_NameType       ; const block : IFRE_DB_Object); virtual; abstract;
+    procedure  cs_InvokeQry                 (const qry: TFRE_DB_QUERY_BASE        ; const transform: IFRE_DB_SIMPLE_TRANSFORM; const return_cg: IFRE_APSC_CHANNEL_GROUP;const ReqID : Qword ; const sync_event : IFOS_E); virtual ; abstract;
   end;
 
   { TFRE_DB_NOTE }
@@ -4863,16 +4864,28 @@ end;
 
 procedure TFRE_DB_UPDATE_STORE_DESC.ForAllUpdated(const obcb: IFRE_DB_Obj_Iterator);
 var fld :IFRE_DB_Field;
+
+  procedure Internal(const obj:IFRE_DB_Object);
+  begin
+    obcb(obj.Field('item').AsObject);
+  end;
+
 begin
  if FieldOnlyExisting('updated',fld) then
-   fld.AsObject.ForAllObjects(obcb);
+   fld.AsObject.ForAllObjects(@Internal);
 end;
 
 procedure TFRE_DB_UPDATE_STORE_DESC.ForAllInserted(const obcb: IFRE_DB_Obj_Iterator);
 var fld :IFRE_DB_Field;
+
+  procedure Internal(const obj:IFRE_DB_Object);
+  begin
+    obcb(obj.Field('item').AsObject);
+  end;
+
 begin
   if FieldOnlyExisting('new',fld) then
-    fld.AsObject.ForAllObjects(obcb);
+    fld.AsObject.ForAllObjects(@internal);
 end;
 
 function TFRE_DB_UPDATE_STORE_DESC.GetStoreID: TFRE_DB_NameType;
@@ -4897,6 +4910,27 @@ end;
 function TFRE_DB_SESSION_DC_RANGE_MGR_KEY.GetKeyAsString: TFRE_DB_CACHE_DATA_KEY;
 begin
   result := SessionID+'@'+DataKey.GetFullKeyString;
+end;
+
+procedure TFRE_DB_SESSION_DC_RANGE_MGR_KEY.SetupFromQryID(qryid: TFRE_DB_CACHE_DATA_KEY);
+var
+  posat : NativeInt;
+  parts : TFRE_DB_StringArray;
+
+begin
+  posat := Pos('@',qryid);
+  if posat<0 then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'cannot setup key rm key, no @ in key [%s]',[qryid]);
+  SessionID := GFRE_BT.SepLeft(qryid,'@');
+  qryid     := GFRE_BT.SepRight(qryid,'@');
+  FREDB_SeperateString(qryid,'/',parts);
+  if Length(parts)<>5 then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'cannot setup key rm key, syntax [%s]',[qryid]);
+  DataKey.Collname  := parts[0];
+  DataKey.DC_Name   := parts[1];
+  DataKey.RL_Spec   := parts[2];
+  DataKey.orderkey  := parts[3];
+  DataKey.filterkey := parts[4];
 end;
 
 { TFRE_DB_STORE_DATA_DESC }
@@ -7532,12 +7566,12 @@ begin
     raise EFRE_DB_Exception.Create(edb_INTERNAL,' REUSE SESSION FAILED, ALREADY BOUND INTERFACE FOUND');
   FBoundSession_RA_SC := sc_interface;
   GFRE_DBI.LogNotice(dblc_SESSION,'SET SESSION INTERFACE (RESUE) -> SESSION ['+fsessionid+'/'+FConnDesc+'/'+FUserName+']');
-  GFRE_DB_TCDM.cs_DropAllQueryRanges(GetSessionID,true,true);
+  GFRE_DB_TCDM.cs_DropAllQueryRanges(GetSessionID,true);
 end;
 
 procedure TFRE_DB_UserSession.ClearServerClientInterface;
 begin
-  GFRE_DB_TCDM.cs_DropAllQueryRanges(GetSessionID,true,true);
+  GFRE_DB_TCDM.cs_DropAllQueryRanges(GetSessionID,true);
   RemoveAllTimers;
   if FPromoted then
     FSessionTerminationTO := GCFG_SESSION_UNBOUND_TO
@@ -7918,6 +7952,9 @@ begin
         on e:exception do
           begin
             GFRE_DBI.LogError(dblc_DB,'Custom transform failed %s',[e.Message]);
+            writeln('CTF FAILED...............');
+            writeln(transformed_filtered_cloned_obj.DumpToString);
+            writeln('...............');
           end;
       end;
     end;
@@ -8126,7 +8163,7 @@ var cbs : IFRE_DB_Object;
   end;
 
 begin
-  writeln('>>> SWL:: A NEW OBJECT WAS UPDATED (LIE)',upobj.DumpToString,'  ',tsid );
+  //writeln('>>> SWL:: A NEW OBJECT WAS UPDATED (LIE)',upobj.DumpToString,'  ',tsid );
   if IsDBOUpdatable(upobj.UID) then
     begin
       cbs:=getDBOChangeCBs(upobj.UID);
