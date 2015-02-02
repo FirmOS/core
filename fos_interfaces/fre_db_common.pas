@@ -2179,14 +2179,15 @@ implementation
                     inputField:=block.AddInput;
                   end;
                   (inputField as TFRE_DB_INPUT_DESC).Describe(_getText(GetCaptionKey),prefix+GetfieldName,required,GetRequired,GetDisabled,GetHidden,GetDefault,validator,valParams,FieldSchemeDefinition.MultiValues,FieldSchemeDefinition.isPass);
-                  if FieldSchemeDefinition.AddConfirm then
+                  if FieldSchemeDefinition.AddConfirm then begin
                     if Assigned(group) then begin
                       inputField:=group.AddInput;
                     end else begin
                       inputField:=block.AddInput();
                     end;
                     (inputField as TFRE_DB_INPUT_DESC).Describe(_getText(FREDB_GetGlobalTextKey('input_confirm_prefix'))+' ' + _getText(GetCaptionKey),prefix+GetfieldName + '_confirm',required,GetRequired,
-                                        GetDisabled,GetHidden,GetDefault,validator,valParams,FieldSchemeDefinition.MultiValues,FieldSchemeDefinition.isPass,prefix+obj.GetfieldName);
+                                                                GetDisabled,GetHidden,GetDefault,validator,valParams,FieldSchemeDefinition.MultiValues,FieldSchemeDefinition.isPass,prefix+obj.GetfieldName);
+                  end;
                 end;
               fdbft_Boolean:
                 with obj do begin
