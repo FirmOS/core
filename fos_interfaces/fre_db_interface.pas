@@ -2187,6 +2187,7 @@ type
     procedure   AddOrderDef       (const orderfield_name : TFRE_DB_NameType ; const ascending : boolean ; const case_insensitive : boolean); virtual ; abstract;
     function    OrderCount        : NativeInt; virtual ; abstract;
     procedure   AssignFrom        (const orderdef : TFRE_DB_DC_ORDER_DEFINITION_BASE); virtual; abstract;
+    function    HasOrders         : boolean;virtual;abstract;
 end;
 
   { TFRE_DB_QUERY_DEF }
@@ -2201,6 +2202,7 @@ end;
      UserTokenRef             : IFRE_DB_USER_RIGHT_TOKEN;
      FilterDefStaticRef       : TFRE_DB_DC_FILTER_DEFINITION_BASE;
      FilterDefDynamicRef      : TFRE_DB_DC_FILTER_DEFINITION_BASE;
+     FilterDefDependencyRef   : TFRE_DB_DC_FILTER_DEFINITION_BASE;
      OrderDefRef              : TFRE_DB_DC_ORDER_DEFINITION_BASE;
      ParentIds                : TFRE_DB_GUIDArray;
      ParentChildSpec          : TFRE_DB_NameTypeRL;

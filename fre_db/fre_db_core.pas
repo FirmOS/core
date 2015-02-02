@@ -1753,9 +1753,12 @@ type
    var
     FName              : TFRE_DB_String;
     FUniquename        : TFRE_DB_String;
-    FDCollFilters      : TFRE_DB_DC_FILTER_DEFINITION_BASE;
-    FDCollFiltersDyn   : TFRE_DB_DC_FILTER_DEFINITION_BASE;
+    FDCollFilters      : TFRE_DB_DC_FILTER_DEFINITION_BASE; { Static Filters }
+    FDCollFiltersDyn   : TFRE_DB_DC_FILTER_DEFINITION_BASE; { Dynamic Filters from Web GUI }
+    FDCollFiltersDepd  : TFRE_DB_DC_FILTER_DEFINITION_BASE; { Dynamic Dependency Filter Web GUI, set on WEB_GET_GRIDDATA }
+
     FDCollOrder        : TFRE_DB_DC_ORDER_DEFINITION_BASE;
+    FDCollOrderDyn     : TFRE_DB_DC_ORDER_DEFINITION_BASE;
     FDCMode            : TDC_Mode;
     FDepObjectsRefNeg  : Boolean;
     FDepRefConstraint  : TFRE_DB_NameTypeRLArrayArray;
@@ -1797,7 +1800,6 @@ type
     function        HasParentChildRefRelationDefined : boolean;
 
     function        IsDependencyFilteredCollection   : boolean;
-    //function        HasReflinksInTransformation      : boolean; { a potential reflink dependency is in the transforms }
 
     function        ParentchildRelationIsOutbound    : boolean;
     procedure       _CheckSetDisplayType             (const CollectionDisplayType: TFRE_COLLECTION_DISPLAY_TYPE);
@@ -7822,11 +7824,13 @@ end;
 constructor TFRE_DB_DERIVED_COLLECTION.Create(const dbname: TFRE_DB_NameType; const name: TFRE_DB_NameType); //self
 begin
   Inherited Create;
-  FName            := name;
-  FUniqueName      := uppercase(name);
-  FDCollFilters    := GFRE_DB_TCDM.GetNewFilterDefinition(DBName);
-  FDCollFiltersDyn := GFRE_DB_TCDM.GetNewFilterDefinition(DBName);
-  FDCollOrder      := GFRE_DB_TCDM.GetNewOrderDefinition;
+  FName             := name;
+  FUniqueName       := uppercase(name);
+  FDCollFilters     := GFRE_DB_TCDM.GetNewFilterDefinition(DBName);
+  FDCollFiltersDyn  := GFRE_DB_TCDM.GetNewFilterDefinition(DBName);
+  FDCollFiltersDepd := GFRE_DB_TCDM.GetNewFilterDefinition(DBName);
+  FDCollOrder       := GFRE_DB_TCDM.GetNewOrderDefinition;
+  FDCollOrderDyn    := GFRE_DB_TCDM.GetNewOrderDefinition;
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.GetCollectionTransformKey: TFRE_DB_NameTypeRL;
@@ -8014,7 +8018,9 @@ destructor TFRE_DB_DERIVED_COLLECTION.Destroy;
 begin
   FDCollFilters.free;
   FDCollFiltersDyn.free;
+  FDCollFiltersDepd.Free;
   FDCollOrder.free;
+  FDCollOrderDyn.Free;
   if assigned(FTransform) then
     FTransform.free;
   FitemMenuFunc.Free;
@@ -8116,7 +8122,6 @@ var qrydef : TFRE_DB_QUERY_DEF;
 begin
   try
     MustBeInitialized;
-    FDCollFiltersDyn.RemoveAllFilters;
     qrydef     := SetupQryDefinitionBasic(-1,-1); { Itemcount }
     query      := GFRE_DB_TCDM.GenerateQueryFromQryDef(qrydef);
     FLastQryID := query.GetQueryID;
@@ -8155,7 +8160,11 @@ begin
   qrydef.ParentName               := FParentCollection.CollectionName(true);
   qrydef.FilterDefStaticRef       := FDCollFilters;
   qrydef.FilterDefDynamicRef      := FDCollFiltersDyn;
-  qrydef.OrderDefRef              := Orders;
+  qryDef.FilterDefDependencyRef   := FDCollFiltersDepd;
+  if FDCollOrderDyn.HasOrders then
+    qrydef.OrderDefRef := FDCollOrderDyn
+  else
+    qrydef.OrderDefRef := Orders;
   qrydef.SessionID                := FDC_Session.GetSessionID;
   qrydef.UserTokenRef             := FDC_Session.GetDBConnection.SYS.GetCurrentUserTokenRef;
   qrydef.StartIdx                 := start;
@@ -8196,7 +8205,7 @@ var i, j, cnt : NativeInt;
                 else
                   raise EFRE_DB_Exception.Create(edb_MISMATCH,'a web requested datetime field filter must use signed filter values');
               end;
-              qrydef.FilterDefDynamicRef.AddDatetimeFieldFilter(filter_key,ffn,vals,nft,fnegate,fallownull);
+              qrydef.FilterDefDependencyRef.AddDatetimeFieldFilter(filter_key,ffn,vals,nft,fnegate,fallownull);
             end;
 
             function _C2S : TFRE_DB_Int64Array;inline;
@@ -8235,9 +8244,9 @@ var i, j, cnt : NativeInt;
                   refl_spec := qrydef.GetReflinkSpec(ffn);
                   refl_vals := qrydef.GetReflinkStartValues(ffn);
                   if not qrydef.DepRefNegate then
-                    qrydef.FilterDefDynamicRef.AddAutoDependencyFilter(filter_key,refl_spec,refl_vals,true,fallownull)
+                    qrydef.FilterDefDependencyRef.AddAutoDependencyFilter(filter_key,refl_spec,refl_vals,true,fallownull)
                   else
-                    qrydef.FilterDefDynamicRef.AddAutoDependencyFilter(filter_key,refl_spec,refl_vals,false,fallownull);
+                    qrydef.FilterDefDependencyRef.AddAutoDependencyFilter(filter_key,refl_spec,refl_vals,false,fallownull);
                 end
               else
                 begin { "normal" UID Filter}
@@ -8291,13 +8300,13 @@ var i, j, cnt : NativeInt;
                   sft := FREDB_String2StrFilterType(Filter.field('STRFILTERTYPE').AsString)
                 else
                   sft := dbft_PART;
-                qrydef.FilterDefDynamicRef.AddStringFieldFilter(filter_key,ffn,Filter.field('FILTERVALUES').AsStringArr[0],sft,fnegate,fallownull);
+                qrydef.FilterDefDependencyRef.AddStringFieldFilter(filter_key,ffn,Filter.field('FILTERVALUES').AsStringArr[0],sft,fnegate,fallownull);
               end;
             dbf_SIGNED:
               begin
                 case ftfrom_vals of
-                  dbf_SIGNED: qrydef.FilterDefDynamicRef.AddSignedFieldFilter(filter_key,ffn,_C2S,FREDB_String2NumfilterType(Filter.field('NUMFILTERTYPE').AsString),fnegate,fallownull);
-                  dbf_REAL64: qrydef.FilterDefDynamicRef.AddReal64FieldFilter(filter_key,ffn,_C2REAL,FREDB_String2NumfilterType(Filter.field('NUMFILTERTYPE').AsString),fnegate,fallownull);
+                  dbf_SIGNED: qrydef.FilterDefDependencyRef.AddSignedFieldFilter(filter_key,ffn,_C2S,FREDB_String2NumfilterType(Filter.field('NUMFILTERTYPE').AsString),fnegate,fallownull);
+                  dbf_REAL64: qrydef.FilterDefDependencyRef.AddReal64FieldFilter(filter_key,ffn,_C2REAL,FREDB_String2NumfilterType(Filter.field('NUMFILTERTYPE').AsString),fnegate,fallownull);
                   else
                     raise EFRE_DB_Exception.Create(edb_MISMATCH,'a web requested signed field filter must use signed or real64 filter values');
                 end;
@@ -8313,13 +8322,13 @@ var i, j, cnt : NativeInt;
                   else
                     raise EFRE_DB_Exception.Create(edb_MISMATCH,'a web requested currency field filter must use signed or real64 filter values');
                 end;
-                qrydef.FilterDefDynamicRef.AddCurrencyFieldFilter(filter_key,ffn,_C2CURR,FREDB_String2NumfilterType(Filter.field('NUMFILTERTYPE').AsString),fnegate,fallownull);
+                qrydef.FilterDefDependencyRef.AddCurrencyFieldFilter(filter_key,ffn,_C2CURR,FREDB_String2NumfilterType(Filter.field('NUMFILTERTYPE').AsString),fnegate,fallownull);
               end;
             dbf_DATETIME:  ProcessDateTimeFilter;
-            dbf_BOOLEAN:   qrydef.FilterDefDynamicRef.AddBooleanFieldFilter(filter_key,ffn,Filter.field('FILTERVALUES').AsBoolean,fnegate,fallownull);
+            dbf_BOOLEAN:   qrydef.FilterDefDependencyRef.AddBooleanFieldFilter(filter_key,ffn,Filter.field('FILTERVALUES').AsBoolean,fnegate,fallownull);
             dbf_GUID:      ProcessUIDFilter;
-            dbf_SCHEME:    qrydef.FilterDefDynamicRef.AddSchemeObjectFilter(filter_key,Filter.field('FILTERVALUES').AsStringArr,fnegate);
-            dbf_RIGHT:     qrydef.FilterDefDynamicRef.AddStdRightObjectFilter(filter_key,FREDB_RightSetString2RightSet(Filter.field('FILTERVALUES').AsString),qrydef.UserTokenRef.CloneToNewUserToken,fnegate);
+            dbf_SCHEME:    qrydef.FilterDefDependencyRef.AddSchemeObjectFilter(filter_key,Filter.field('FILTERVALUES').AsStringArr,fnegate);
+            dbf_RIGHT:     qrydef.FilterDefDependencyRef.AddStdRightObjectFilter(filter_key,FREDB_RightSetString2RightSet(Filter.field('FILTERVALUES').AsString),qrydef.UserTokenRef.CloneToNewUserToken,fnegate);
             else raise EFRE_DB_Exception.Create(edb_ERROR,'unhandled filter type');
           end;
         end;
@@ -8328,7 +8337,7 @@ var i, j, cnt : NativeInt;
         var i,j : NativeInt;
             fld : IFRE_DB_Field;
         begin
-          qrydef.FilterDefDynamicRef.RemoveAllFilters;
+          qrydef.FilterDefDependencyRef.RemoveAllFilters;
           if length(qrydef.ParentIds)>0 then { hack skip uid filter processing on child query}
             exit;
           SetLength(qrydef.DepFilterUids,Length(qrydef.DependencyRefIds));
@@ -8357,15 +8366,6 @@ begin
     begin { this is a child query }
       qrydef.ParentIds := FREDB_H2GArray(web_input.Field('parentid').AsString);
     end;
-  if web_input.FieldExists('sort') then
-    begin
-      qrydef.OrderDefRef.ClearOrders;
-      cnt := web_input.Field('sort').ValueCount;
-      for i:=0 to cnt-1 do begin
-        sort := web_input.Field('SORT').AsObjectItem[i];
-        qrydef.OrderDefRef.AddOrderDef(sort.Field('PROPERTY').AsString,sort.Field('ASCENDING').AsBoolean,true);
-      end;
-    end;
   Processfilters;
   result := qrydef;
 end;
@@ -8376,7 +8376,6 @@ var query    : TFRE_DB_QUERY_BASE;
 begin
   try
     MustBeInitialized;
-    FDCollFiltersDyn.RemoveAllFilters;
     query      := GFRE_DB_TCDM.GenerateQueryFromQryDef(qrydef);
     FLastQryID := query.GetQueryID;
     try
@@ -8561,14 +8560,10 @@ var
     e               : IFOS_E;
 
 begin
-  //writeln('----------------------------');
-  //writeln('GGD----------------------------');
-  //writeln(input.DumpToString );
-  //writeln('----------------------------');
   result := GFRE_DB_SUPPRESS_SYNC_ANSWER;
   try
     MustBeInitialized;
-    FDCollFiltersDyn.RemoveAllFilters;
+    writeln('input.dds',input.DumpToString );
     qrydef     := SetupQryDefinitionFromWeb(input);
     query      := GFRE_DB_TCDM.GenerateQueryFromQryDef(qrydef);
     FLastQryID := query.GetQueryID;
@@ -8589,8 +8584,192 @@ begin
 end;
 
 function TFRE_DB_DERIVED_COLLECTION.WEB_SET_SORT_AND_FILTER(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+
+  procedure ProcessOrders;
+  var cnt,i : NativeInt;
+      sort  : IFRE_DB_Object;
+  begin
+    if input.FieldExists('sort') then
+      begin
+        FDCollOrderDyn.ClearOrders;
+        cnt := input.Field('sort').ValueCount;
+        for i:=0 to cnt-1 do begin
+          sort := input.Field('SORT').AsObjectItem[i];
+          FDCollOrderDyn.AddOrderDef(sort.Field('PROPERTY').AsString,sort.Field('ASCENDING').AsBoolean,true);
+        end;
+      end;
+  end;
+
+
+  procedure Processfilters;
+  var dop : IFRE_DB_Object;
+
+      procedure AddFilter(const filter_key : TFRE_DB_NameType ; const Filter : IFRE_DB_Object);
+      var ftstr       : shortstring;
+          ft          : TFRE_DB_FILTERTYPE;
+          ftfrom_vals : TFRE_DB_FILTERTYPE;
+          ffn         : TFRE_DB_NameType;
+          sft         : TFRE_DB_STR_FILTERTYPE;
+          fld         : IFRE_DB_FIELD;
+          fallownull  : boolean;
+          fnegate     : boolean;
+          nft         : TFRE_DB_NUM_FILTERTYPE;
+          nfts        : TFRE_DB_String;
+
+
+          procedure ProcessDateTimeFilter;
+          var ffld : IFRE_DB_Field;
+              i    : NativeInt;
+              vals : TFRE_DB_DateTimeArray;
+          begin
+            ffld :=  Filter.field('FILTERVALUES');
+            vals := ffld.AsInt64Arr;
+            case ftfrom_vals of
+              dbf_SIGNED: ;
+              else
+                raise EFRE_DB_Exception.Create(edb_MISMATCH,'a web requested datetime field filter must use signed filter values');
+            end;
+            //FilterDefDynamicRef.AddDatetimeFieldFilter(filter_key,ffn,vals,nft,fnegate,fallownull);
+          end;
+
+          function _C2S : TFRE_DB_Int64Array;inline;
+          begin
+            result := Filter.field('FILTERVALUES').ConvAsSignedArray;
+          end;
+
+          function _C2US : TFRE_DB_UInt64Array;inline;
+          begin
+            result := Filter.field('FILTERVALUES').ConvAsUnsignedArray;
+          end;
+
+          function _C2CURR : TFRE_DB_CurrencyArray;
+          begin
+            result := Filter.field('FILTERVALUES').ConvAsCurrencyArray;
+          end;
+
+          function _C2REAL : TFRE_DB_Real64Array;
+          begin
+            result := Filter.field('FILTERVALUES').ConvAsReal64Array;
+          end;
+
+          procedure ProcessUidFilter;
+          var vals         : TFRE_DB_GUIDArray;
+              sa           : TFRE_DB_StringArray;
+              i            : NativeInt;
+              refl_filter  : boolean;
+              refl_spec    : TFRE_DB_NameTypeRLArray;
+              refl_vals    : TFRE_DB_GUIDArray;
+              expanded_uid : TFRE_DB_GUIDArray;
+          begin
+            //if length(qrydef.ParentIds)>0 then { hack skip uid filter processing on child query}
+            //  exit;
+            //if FREDB_StringInArray(uppercase(ffn),qrydef.DependencyRefIds) then
+            //  begin { dependency ref UID Filter}
+            //    refl_spec := qrydef.GetReflinkSpec(ffn);
+            //    refl_vals := qrydef.GetReflinkStartValues(ffn);
+            //    if not qrydef.DepRefNegate then
+            //      qrydef.FilterDefDynamicRef.AddAutoDependencyFilter(filter_key,refl_spec,refl_vals,true,fallownull)
+            //    else
+            //      qrydef.FilterDefDynamicRef.AddAutoDependencyFilter(filter_key,refl_spec,refl_vals,false,fallownull);
+            //  end
+            //else
+            //  begin { "normal" UID Filter}
+            //    raise EFRE_DB_Exception.Create(edb_internal,'uid filter type not implemented from client');
+            //  end
+          end;
+
+      begin
+        nfts := Filter.field('NUMFILTERTYPE').AsString;
+        if nfts<>'' then
+          nft := FREDB_String2NumfilterType(nfts)
+        else
+          nft := dbnf_EXACT;
+
+        ft         := FREDB_FilterTypeString2Filtertype(Filter.Field('FILTERTYPE').AsString);
+        ffn        := uppercase(Filter.Field('FILTERFIELDNAME').AsString);
+        case Filter.field('FILTERVALUES').FieldType of { value type does not propagate exact through json->dbo}
+          fdbft_Byte:        ftfrom_vals := dbf_SIGNED;
+          fdbft_Int16:       ftfrom_vals := dbf_SIGNED;
+          fdbft_UInt16:      ftfrom_vals := dbf_SIGNED;
+          fdbft_Int32:       ftfrom_vals := dbf_SIGNED;
+          fdbft_UInt32:      ftfrom_vals := dbf_SIGNED;
+          fdbft_Int64:       ftfrom_vals := dbf_SIGNED;
+          fdbft_UInt64:      ftfrom_vals := dbf_UNSIGNED;
+          fdbft_Real32:      ftfrom_vals := dbf_REAL64;
+          fdbft_Real64:      ftfrom_vals := dbf_REAL64;
+          fdbft_Currency:    ftfrom_vals := dbf_CURRENCY;
+          fdbft_String:      ftfrom_vals := dbf_TEXT;
+          fdbft_Boolean:     ftfrom_vals := dbf_BOOLEAN;
+          fdbft_DateTimeUTC: ftfrom_vals := dbf_DATETIME;
+          fdbft_GUID:        ftfrom_vals := dbf_UNSIGNED;
+          fdbft_NotFound:    ftfrom_vals := dbf_EMPTY;
+          else
+            raise EFRE_DB_Exception.Create(edb_ERROR,'cannot determine filtertype from input filtervalues fieldtype=%s',[CFRE_DB_FIELDTYPE[Filter.field('FILTERVALUES').FieldType]]);
+        end;
+        if Filter.FieldOnlyExisting('ALLOWNULL',fld) then
+          fallownull := fld.AsBoolean
+        else
+          fallownull := false;
+        if Filter.FieldOnlyExisting('NEG',fld) then
+          fnegate    := fld.AsBoolean
+        else
+          fnegate    := true;
+        case ft of
+          dbf_TEXT:
+            begin
+              if ftfrom_vals<>dbf_TEXT then
+                raise EFRE_DB_Exception.Create(edb_MISMATCH,'a string field filter must use string filter values');
+              ftstr := Filter.field('STRFILTERTYPE').AsString;
+              if ftstr<>'' then
+                sft := FREDB_String2StrFilterType(Filter.field('STRFILTERTYPE').AsString)
+              else
+                sft := dbft_PART;
+              FDCollFiltersDyn.AddStringFieldFilter(filter_key,ffn,Filter.field('FILTERVALUES').AsStringArr[0],sft,fnegate,fallownull);
+            end;
+          dbf_SIGNED:
+            begin
+              case ftfrom_vals of
+                dbf_SIGNED: FDCollFiltersDyn.AddSignedFieldFilter(filter_key,ffn,_C2S,FREDB_String2NumfilterType(Filter.field('NUMFILTERTYPE').AsString),fnegate,fallownull);
+                dbf_REAL64: FDCollFiltersDyn.AddReal64FieldFilter(filter_key,ffn,_C2REAL,FREDB_String2NumfilterType(Filter.field('NUMFILTERTYPE').AsString),fnegate,fallownull);
+                else
+                  raise EFRE_DB_Exception.Create(edb_MISMATCH,'a web requested signed field filter must use signed or real64 filter values');
+              end;
+            end;
+          dbf_UNSIGNED:
+              raise EFRE_DB_Exception.Create(edb_INTERNAL,'a web requested unsigned field filter is not implemented');
+          dbf_CURRENCY:
+            begin
+              case ftfrom_vals of
+                dbf_SIGNED,
+                dbf_CURRENCY,
+                dbf_REAL64 : ;
+                else
+                  raise EFRE_DB_Exception.Create(edb_MISMATCH,'a web requested currency field filter must use signed or real64 filter values');
+              end;
+              FDCollFiltersDyn.AddCurrencyFieldFilter(filter_key,ffn,_C2CURR,FREDB_String2NumfilterType(Filter.field('NUMFILTERTYPE').AsString),fnegate,fallownull);
+            end;
+          dbf_DATETIME:  ProcessDateTimeFilter;
+          dbf_BOOLEAN:   FDCollFiltersDyn.AddBooleanFieldFilter(filter_key,ffn,Filter.field('FILTERVALUES').AsBoolean,fnegate,fallownull);
+          dbf_GUID:      ProcessUIDFilter;
+          dbf_SCHEME:    FDCollFiltersDyn.AddSchemeObjectFilter(filter_key,Filter.field('FILTERVALUES').AsStringArr,fnegate);
+          dbf_RIGHT:     FDCollFiltersDyn.AddStdRightObjectFilter(filter_key,FREDB_RightSetString2RightSet(Filter.field('FILTERVALUES').AsString),FDC_Session.GetDBConnection.URT(true),fnegate);
+          else raise EFRE_DB_Exception.Create(edb_ERROR,'unhandled filter type');
+        end;
+      end;
+
+  begin
+    if input.FieldOnlyExistingObject('FILTER',dop) then
+      begin
+        FDCollFiltersDyn.RemoveAllFilters; { remove dynamic filters }
+        dop.ForAllObjectsFieldName(@AddFilter);
+      end;
+  end;
+
+
 begin
   writeln('WEB_SET_SORT_AND_FILTER: ' + input.DumpToString()); //FIXXME heli - please implement me
+  ProcessOrders;
+  Processfilters;
   Result:=GFRE_DB_NIL_DESC;
 end;
 
@@ -8602,6 +8781,8 @@ end;
 
 function TFRE_DB_DERIVED_COLLECTION.WEB_DESTROY_STORE(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 begin
+  FDCollFiltersDyn.RemoveAllFilters;
+  FDCollOrderDyn.ClearOrders;
   GFRE_DB_TCDM.cs_DropAllQueryRanges(FLastQryID.GetKeyAsString,false);
   result := GFRE_DB_NIL_DESC;
 end;

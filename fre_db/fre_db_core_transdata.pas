@@ -114,6 +114,7 @@ type
     function    Orderdatakey      : TFRE_DB_CACHE_DATA_KEY; { get orderdatakey upon basedata }
     function    BasedataKey       : TFRE_DB_CACHE_DATA_KEY; { get needed basedatakey }
     function    CacheDataKey      : TFRE_DB_TRANS_COLL_DATA_KEY;
+    function    HasOrders         : boolean;override;
   end;
 
   { TFRE_DB_FILTER_STRING }
@@ -515,7 +516,6 @@ type
   public
      procedure   CaptureStartTime                  ; override;
      function    CaptureEndTime                    : NativeInt;  override;
-     procedure   AddjustResultDBOLen               (const compare_run : boolean);
      procedure   StartQueryRun                     (const compare_run : boolean);
      procedure   EndQueryRun                       (const compare_run : boolean);
 
@@ -525,8 +525,6 @@ type
      function    HasOrderDefinition                : boolean;
      property    Orderdef                          : TFRE_DB_DC_ORDER_DEFINITION  read GetOrderDefinition;
      property    Filterdef                         : TFRE_DB_DC_FILTER_DEFINITION read GetFilterDefinition;
-     function    ExecuteQuery                      (const iterator   : IFRE_DB_Obj_Iterator ; const dc : IFRE_DB_DERIVED_COLLECTION):NativeInt;override; { execute the query, determine count and array of result dbo's, in a lock safe way }
-     procedure   ExecutePointQuery                 (const iterator   : IFRE_DB_Obj_Iterator);override;
      property    QryDBName                         : TFRE_DB_NameType read FQryDBName;
 
      function    GetReqID                          : Qword; override;
@@ -740,7 +738,6 @@ type
   public
     constructor  Create                  (const orderdef : TFRE_DB_DC_ORDER_DEFINITION ; base_trans_data : TFRE_DB_TRANFORMED_DATA);
     destructor   Destroy                 ; override;
-    //function     ExecuteBaseOrdered      (const iter: IFRE_DB_Obj_Iterator; const sessionid: TFRE_DB_SESSION_ID; const filterdef: TFRE_DB_DC_FILTER_DEFINITION; var startidx, endidx: NativeInt; const point_qry: boolean): NativeInt;
     procedure    OrderTheData            (const startchunk, endchunk: Nativeint; const wid: NativeInt);
     function     GetOrderedDatakey       : TFRE_DB_CACHE_DATA_KEY;
     function     GetCacheDataKey         : TFRE_DB_TRANS_COLL_DATA_KEY;
@@ -3657,8 +3654,7 @@ begin
           else
             begin
               FOBJArray[old_idx] := new_obj;
-              //Checkintegrity;
-              //G_TCDM.UpdateObjectInFilterKey(td,self,new_obj,old_idx);  { in place update }
+              TagQueries4UpInsDel(transtag);  { in place update }
             end;
         end;
     end
@@ -4276,6 +4272,7 @@ var fld    : IFRE_DB_FIELD;
   end;
 
 begin
+  MustBeSealed;
   max_key_len := 0;
   ForAllOrders(@iter);
   if tag_object then
@@ -4302,6 +4299,11 @@ begin
   result := FKey;
 end;
 
+function TFRE_DB_DC_ORDER_DEFINITION.HasOrders: boolean;
+begin
+  result := Length(FOrderList)>0;
+end;
+
 
 procedure TFRE_DB_DC_ORDER_DEFINITION.ClearOrders;
 begin
@@ -4325,6 +4327,8 @@ var key : string;
     i   : NativeInt;
 begin
   MustNotBeSealed;
+  if Length(FOrderList)=0 then
+    raise EFRE_DB_Exception.Create(edb_ERROR,'a orderdefinition must at least contain one order!');
   key := '';
   for i := 0 to high(FOrderList) do
     with FOrderList[i] do
@@ -4503,61 +4507,6 @@ begin
   result := assigned(FOrderDef);
 end;
 
-
-//procedure TFRE_DB_QUERY.SetMaxResultDBOLen(const compare_run: boolean);
-//begin
-//  if not compare_run then
-//    SetLength(FResultDBOs,FToDeliverCount)
-//  else
-//    SetLength(FResultDBOsCompare,FToDeliverCount);
-//end;
-
-//procedure TFRE_DB_QUERY.SetResultObject(const idx: NativeInt; const obj: IFRE_DB_Object; const compare_run: boolean);
-//begin
-//  //try
-//  //  if not compare_run then
-//  //    FResultDBOs[idx] := obj.CloneToNewObject { objects will be freed on updated/inser/deleted -> references are invalid then }
-//  //  else
-//  //    FResultDBOsCompare[idx] := obj.CloneToNewObject
-//  //except
-//  //  on e:exception do
-//  //    begin
-//  //      GFRE_DBI.LogError(dblc_DBTDM,'INTERNAL - SetResultObject Failed '+e.Message);
-//  //      raise;
-//  //    end;
-//  //end;
-//end;
-
-procedure TFRE_DB_QUERY.AddjustResultDBOLen(const compare_run: boolean);
-begin
-  //if not compare_run then
-  //  SetLength(FResultDBOs,FQueryDeliveredCount)
-  //else
-  //  SetLength(FResultDBOsCompare,FQueryDeliveredCountCmp);
-end;
-
-function TFRE_DB_QUERY.ExecuteQuery(const iterator: IFRE_DB_Obj_Iterator; const dc: IFRE_DB_DERIVED_COLLECTION): NativeInt;
-var
-    query_tod : TFRE_DB_TRANSFORMED_ORDERED_DATA;
-begin
-  abort;
-  //if not G_TCDM.GetTransformedDataLocked(self,query_tod) then
-  //  G_TCDM.NewTransformedDataLocked(Self,dc,query_tod);
-  //FTOD  := query_tod; { Transformation and Ordering is Done - the data is transformed and ordered now }
-  //StartQueryRun(false);
-  //result := FTOD.ExecuteBaseOrdered(iterator,FSessionID,Filterdef,FStartIdx,FEndIndex,false);
-  //EndQueryRun(false);
-end;
-
-procedure TFRE_DB_QUERY.ExecutePointQuery(const iterator: IFRE_DB_Obj_Iterator);
-begin
-  //if not assigned(FTOD) then
-  //  raise EFRE_DB_Exception.Create(edb_ERROR,'no base data available');
-  //StartQueryRun(false);
-  abort;
-  //FTOD.ExecuteBaseOrdered(iterator,self,false,true);
-  EndQueryRun(false);
-end;
 
 function TFRE_DB_QUERY.GetReqID: Qword;
 begin
@@ -6024,6 +5973,7 @@ var qry : TFRE_DB_QUERY;
      qry.Filterdef.AddStdRightObjectFilter('*SRF*',[sr_FETCH],qry_def.UserTokenRef.CloneToNewUserToken);
      qry.Filterdef.AddFilters(qry_def.FilterDefStaticRef,true);
      qry.Filterdef.AddFilters(qry_def.FilterDefDynamicRef,true);
+     qry.Filterdef.AddFilters(qry_def.FilterDefDependencyRef,true);
      qry.Filterdef.Seal;
    end;
 
@@ -6274,7 +6224,7 @@ begin
   p := TFRE_TDM_DROPQ_PARAMS.Create;
   p.qry_id         := qry_id;
   p.whole_session  := whole_session;
-  FTransCompute.DoAsyncWorkSimpleMethod(TFRE_APSC_CoRoutine(@s_DropAllQueryRanges),p);
+  //FTransCompute.DoAsyncWorkSimpleMethod(TFRE_APSC_CoRoutine(@s_DropAllQueryRanges),p);
 end;
 
 procedure TFRE_DB_TRANSDATA_MANAGER.cs_RemoveQueryRange(const qry_id: TFRE_DB_CACHE_DATA_KEY; const start_idx, end_idx: NativeInt);
@@ -6284,7 +6234,7 @@ begin
   p.qry_id         := qry_id;
   p.start_idx      := start_idx;
   p.end_idx        := end_idx;
-  FTransCompute.DoAsyncWorkSimpleMethod(TFRE_APSC_CoRoutine(@s_DropQryRange),p);
+  //FTransCompute.DoAsyncWorkSimpleMethod(TFRE_APSC_CoRoutine(@s_DropQryRange),p);
 end;
 
 procedure TFRE_DB_TRANSDATA_MANAGER.cs_InvokeQry(const qry: TFRE_DB_QUERY_BASE; const transform: IFRE_DB_SIMPLE_TRANSFORM; const return_cg: IFRE_APSC_CHANNEL_GROUP; const ReqID: Qword; const sync_event: IFOS_E);
