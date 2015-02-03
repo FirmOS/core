@@ -597,6 +597,7 @@ implementation
                            if co.Field('disabled').AsBoolean then begin
                              jsContentAdd('" disabled "+');
                            end;
+                           _BuildInputDep(co);
                            jsContentAdd('"  data-dojo-props=''"+');
                            if co.Field('defaultValue').ValueCount>0 then begin
                              defValue:='[';
@@ -608,7 +609,6 @@ implementation
                              jsContentAdd('" value: '+defValue+'"+');
                            end;
                            jsContentAdd('"''>"+');
-                           _BuildInputDep(co);
                            for i := 0 to store.Field('entries').ValueCount - 1 do begin
                              jsContentAdd('"  <option value='''+store.Field('entries').AsObjectItem[i].Field('value').AsString+'''>'+_EscapeValueString(store.Field('entries').AsObjectItem[i].Field('caption').AsString)+'</option>"+');
                            end;
@@ -619,12 +619,12 @@ implementation
                            if co.Field('disabled').AsBoolean then begin
                              jsContentAdd('" disabled "+');
                            end;
+                           _BuildInputDep(co);
                            jsContentAdd('"  data-dojo-props=''"+');
                            if co.Field('defaultValue').AsString<>'' then begin
                              jsContentAdd('" value: \"'+ _EscapeValueString(co.Field('defaultValue').AsString) +'\""+');
                            end;
                            jsContentAdd('"''>"+');
-                           _BuildInputDep(co);
                            for i := 0 to store.Field('entries').ValueCount - 1 do begin
                              jsContentAdd('"  <option value='''+store.Field('entries').AsObjectItem[i].Field('value').AsString+'''>'+_EscapeValueString(store.Field('entries').AsObjectItem[i].Field('caption').AsString)+'</option>"+');
                            end;
@@ -641,6 +641,7 @@ implementation
                            if not co.Field('required').AsBoolean and co.Field('groupRequired').AsBoolean then begin
                              jsContentAdd('" grouprequired=true"+');
                            end;
+                           _BuildInputDep(co);
                            jsContentAdd('"  data-dojo-props=''"+');
                            jsContentAdd('" value: \"'+ _EscapeValueString(co.Field('defaultValue').AsString) +'\", placeHolder:\"'+_getText(conn,'in_combo_placeholder')+'\""+');
                            if co.Field('dependentInputFields').ValueCount>0 then begin
@@ -678,7 +679,6 @@ implementation
                              jsContentAdd('"]\""+');
                            end;
                            jsContentAdd('"''>"+');
-                           _BuildInputDep(co);
                            if not co.Field('required').AsBoolean or co.Field('addEmptyForRequired').AsBoolean then begin
                              jsContentAdd('"  <option value=''''></option>"+');
                            end;
