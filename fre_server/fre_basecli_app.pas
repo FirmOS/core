@@ -137,6 +137,7 @@ type
     procedure   SchemeDump              (const filename:string;const classfile:string);
     procedure   DumpAll                 (const filterstring: string);
     procedure   OverviewDump            ;
+    procedure   ExpandReferences        (const input:string);
   public
     constructor Create                  (TheOwner: TComponent); override;
     destructor  Destroy                 ; override;
@@ -360,6 +361,7 @@ begin
   AddCheckOption('*'  ,'dbo2json:'     ,'                | --dbo2json=/path2/dbo          : convert a dbo to json representation');
   AddCheckOption('*'  ,'json2dbo:'     ,'                | --json2dbo=/path2/json         : convert a json to dbo representation');
   AddCheckOption('*'  ,'dumpdbo:'      ,'                | --dumpdbo=uid_hex              : direct dump of a dbo');
+  AddCheckOption('*'  ,'expandrefs:'   ,'                | --expandrefs=uid_hex,[..]/RL,..: expand referenceslist');
   AddCheckOption('*'  ,'tryrecovery'   ,'                | --tryrecovery                  : try recovery of a bad db by skipping checks / start with option / make backup / have luck');
   AddCheckOption('*'  ,'showinstalled' ,'                | --showinstalled                : show installed versions of all database objects');
   AddCheckOption('*'  ,'showrights'    ,'                | --showrights                   : show rights of specified user & and check login');
@@ -380,7 +382,7 @@ begin
 
   AddCheckOption('*'  ,'adminuser:'    ,'                | --adminuser=<user>             : specify user for db admin options');
   AddCheckOption('*'  ,'adminpass:'    ,'                | --adminpass=<password>         : specify password for db admin options');
-  AddCheckOption('*'  ,'pladmin:'       ,'               | --pladmin=<user>               : specify user for pl admin options');
+  AddCheckOption('*'  ,'pladmin:'      ,'                | --pladmin=<user>               : specify user for pl admin options');
   AddCheckOption('*'  ,'plpass:'       ,'                | --plpass=<password>            : specify password for pl admin options');
   AddCheckOption('*'  ,'testlog'       ,'                | --testlog                      : enable fixed (debug-cfg) logging to console');
   AddCheckOption('*'  ,'testlogcfg'    ,'                | --testlogcfg                   : do an endless logging test');
@@ -755,6 +757,11 @@ begin
     begin
       result := true;
       DumpDBO(GetOptionValue('*','dumpdbo'));
+    end;
+  if HasOption('*','expandrefs') then
+    begin
+      result := true;
+      ExpandReferences(GetOptionValue('*','expandrefs'));
     end;
   if HasOption('*','backupdb') then
     begin
@@ -1711,6 +1718,57 @@ begin
   CONN := GFRE_DBI.NewConnection;
   CheckDbResult(CONN.Connect(FDBName,cG_OVERRIDE_USER,cG_OVERRIDE_PASS),'cannot connect db');
   conn.OverviewDump(@WriteALine);
+end;
+
+procedure TFRE_CLISRV_APP.ExpandReferences(const input: string);
+var conn : IFRE_DB_CONNECTION;
+    i    : NativeInt;
+    uids : TFRE_DB_GUIDArray;
+    refs : TFRE_DB_GUIDArray;
+    u,r  : string;
+    ua,rl: TFRE_DB_StringArray;
+    rlcs : TFRE_DB_NameTypeRLArray;
+    uido : IFRE_DB_ObjectArray;
+    refo : IFRE_DB_ObjectArray;
+
+begin
+  if not GFRE_BT.SepLeftRight(input,'/',u,r) then
+    begin
+      writeln('You must provide uidlist/RLC e.g 01a0baf86f35800dfc7c1efd7b9ef165,3fb4cc3eb902d947600de91e78592943/DATALINKPARENT>>TFRE_DB_ZONE,SERVICEPARENT>>,..');
+      exit;
+    end;
+  FREDB_SeperateString(u,',',ua);
+  uids := FREDB_StringArray2UidArray(ua);
+  FREDB_SeperateString(r,',',rl);
+  rlcs := FREDB_StringArray2NametypeRLArray(rl);
+  _CheckDBNameSupplied;
+  _CheckAdminUserSupplied;
+  _CheckAdminPassSupplied;
+  _CheckNoCustomextensionsSet;
+  CONN := GFRE_DBI.NewConnection;
+  CheckDbResult(CONN.Connect(FDBName,cG_OVERRIDE_USER,cG_OVERRIDE_PASS),'cannot connect system db');
+  conn.ExpandReferences(uids,rlcs,refs);
+  conn.BulkFetch(uids,uido);
+  conn.BulkFetch(refs,refo);
+  writeln('UIDS');
+  writeln(FREDB_GuidArray2String(uids));
+  for i:=0 to high(uido) do
+    begin
+      writeln(i,':>----');
+      writeln(uido[i].DumpToString());
+      writeln(i,':<----');
+    end;
+  writeln('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>');
+  writeln('RESOLVE TO');
+  writeln(FREDB_GuidArray2String(refs));
+  for i:=0 to high(refo) do
+    begin
+      writeln(i,':>----');
+      writeln(refo[i].DumpToString());
+      writeln(i,':<----');
+    end;
+  writeln('<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<');
+  conn.Finalize;
 end;
 
 constructor TFRE_CLISRV_APP.Create(TheOwner: TComponent);

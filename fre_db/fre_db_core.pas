@@ -333,6 +333,8 @@ type
     function    CheckOutObject     : TFRE_DB_Object;
     function    CheckOutObjectArray: IFRE_DB_ObjectArray;
     function    CheckOutObjectArrayItem     (const idx : NAtiveInt): IFRE_DB_Object;
+    procedure   Add2ArrayFromField          (const sourcefield:IFRE_DB_Field);
+
 
     function    GetStreamingSize  : TFRE_DB_SIZE_TYPE;
     function    CopyFieldToMem    (var mempointer:Pointer):TFRE_DB_SIZE_TYPE;
@@ -1642,11 +1644,12 @@ type
 
   TFRE_DB_REFERERENCE_CHAIN_FT=class(TFRE_DB_FIELD_TRANSFORM)
   protected
-    FRefFieldChain : TFRE_DB_NameTypeRLArray;
-    FLinkFieldName : TFRE_DB_NameType;
+    FRefFieldChain   : TFRE_DB_NameTypeRLArray;
+    FLinkFieldName   : TFRE_DB_NameType;
+    FTransform2Array : Boolean;
   public
     function    RefLinkSpec         : TFRE_DB_NameTypeRLArray;override;
-    constructor Create              (const ref_field_chain: TFRE_DB_NameTypeRLArray;const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false; const fieldSize: Integer=1;const iconID:String='';const defaultValue:TFRE_DB_String='';const filterValues: TFRE_DB_StringArray=nil; const linkFieldName: TFRE_DB_NameType='uid');
+    constructor Create              (const ref_field_chain: TFRE_DB_NameTypeRLArray;const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false; const fieldSize: Integer=1;const iconID:String='';const defaultValue:TFRE_DB_String='';const filterValues: TFRE_DB_StringArray=nil; const linkFieldName: TFRE_DB_NameType='uid';const arraymode:boolean=false);
     procedure   TransformField      (const conn  : IFRE_DB_CONNECTION ; const input, output: IFRE_DB_Object); override;
   end;
 
@@ -1721,6 +1724,8 @@ type
     procedure   AddProgressTransform           (const valuefield:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const textfield:TFRE_DB_String='';const out_text:TFRE_DB_String='';const maxValue:Single=100;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const hide_in_output : boolean=false);
     procedure   AddConstString                 (const out_field,value:TFRE_DB_String;const display: Boolean=false; const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const hide_in_output : boolean=false);
     procedure   AddDBTextToOne                 (const fieldname:TFRE_DB_String;const which_text : TFRE_DB_TEXT_SUBTYPE ; const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const hide_in_output : boolean=false);
+    { Transform ambigous values into an array }
+    procedure   AddMatchingReferencedFieldArray(const ref_field_chain: array of TFRE_DB_NameTypeRL;const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const display:Boolean=true;const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const iconID:String='';const default_value:TFRE_DB_String='';const filterValues:TFRE_DB_StringArray=nil;const hide_in_output : boolean=false; const linkFieldName:TFRE_DB_NameType='uid');
     procedure   AddMatchingReferencedField     (const ref_field_chain: array of TFRE_DB_NameTypeRL;const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const display:Boolean=true;const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const iconID:String='';const default_value:TFRE_DB_String='';const filterValues:TFRE_DB_StringArray=nil;const hide_in_output : boolean=false; const linkFieldName:TFRE_DB_NameType='uid');
     procedure   AddMatchingReferencedField     (const ref_field      : TFRE_DB_NameTypeRL     ;const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const display:Boolean=true;const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const iconID:String='';const default_value:TFRE_DB_String='';const filterValues:TFRE_DB_StringArray=nil;const hide_in_output : boolean=false; const linkFieldName:TFRE_DB_NameType='uid');
     //Get a Viewcollectiondescription depending on the defined fields of the transformation
@@ -3629,10 +3634,11 @@ begin
   Result:=FRefFieldChain;
 end;
 
-constructor TFRE_DB_REFERERENCE_CHAIN_FT.Create(const ref_field_chain: TFRE_DB_NameTypeRLArray; const target_field: TFRE_DB_String; const output_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const display: Boolean; const sortable: Boolean; const filterable: Boolean; const fieldSize: Integer; const iconID: String;const defaultValue:TFRE_DB_String; const filterValues: TFRE_DB_StringArray; const linkFieldName: TFRE_DB_NameType);
+constructor TFRE_DB_REFERERENCE_CHAIN_FT.Create(const ref_field_chain: TFRE_DB_NameTypeRLArray; const target_field: TFRE_DB_String; const output_field: TFRE_DB_String; const output_title: TFRE_DB_String; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const display: Boolean; const sortable: Boolean; const filterable: Boolean; const fieldSize: Integer; const iconID: String; const defaultValue: TFRE_DB_String; const filterValues: TFRE_DB_StringArray; const linkFieldName: TFRE_DB_NameType; const arraymode: boolean);
 begin
+  FTransform2Array:= arraymode;
   FRefFieldChain  := ref_field_chain;
-  FInFieldName    := target_field;
+  FInFieldName    := lowercase(target_field);
   FOutFieldName   := lowercase(output_field);
   FOutFieldTitle  := output_title;
   FGuiDisplaytype := gui_display_type;
@@ -3653,41 +3659,74 @@ var objo      : IFRE_DB_Object;
     ref_uid   : TFRE_DB_GUID;
     i         : integer;
     s         : string;
-    fld       : TFRE_DB_FIELD;
+    fld       : IFRE_DB_FIELD;
     expanded  : TFRE_DB_GUIDArray;
     res       : TFRE_DB_Errortype;
+    dbos      : IFRE_DB_ObjectArray;
+    lft       : TFRE_DB_FIELDTYPE;
 begin
-  conn.ExpandReferences(TFRE_DB_GUIDArray.create(input.Field(FLinkFieldName).AsGUID),FRefFieldChain,expanded);
-  if Length(expanded)=0 then
+  if FTransform2Array then
     begin
-      output.field(uppercase(FOutFieldName)).asstring := FDefaultValue; //unresoved links should return default value for grid
-      exit;
-    end;
-  if Length(expanded)>1 then
-    begin
-      output.field(uppercase(FOutFieldName)).asstring := '?*AMBIGUOUS LINK*';
-      exit;
-    end;
-  res := conn.Fetch(expanded[0],objo);
-  if res<>edb_OK then
-    begin
-      output.field(uppercase(FOutFieldName)).asstring := '?*'+CFRE_DB_Errortype[res]+'*';
-      exit;
+      conn.ExpandReferences(input.Field(FLinkFieldName).AsGUIDArr,FRefFieldChain,expanded);
+      if FInFieldName='uid' then
+        begin
+          output.field(FOutFieldName).AsGUIDArr := expanded;
+        end
+      else
+        begin
+          conn.BulkFetch(expanded,dbos);
+          for i:=0 to high(dbos) do
+            begin
+              lft := output.field(FOutFieldName).FieldType;
+              if dbos[i].FieldOnlyExisting(FInFieldName,fld) then { only for existing fields }
+                begin
+                  output.field(FOutFieldName).Add2ArrayFromField(fld);
+                end;
+            end;
+        end;
     end
   else
     begin
-      if objo.FieldExists(FInFieldName) then begin
-        if objo.Field(FInFieldName).AsString='' then begin
-          output.field(uppercase(FOutFieldName)).asstring:=FDefaultValue;
-        end else begin
-          output.field(uppercase(FOutFieldName)).CloneFromField(objo.Field(FInFieldName));
+      conn.ExpandReferences(TFRE_DB_GUIDArray.create(input.Field(FLinkFieldName).AsGUID),FRefFieldChain,expanded);
+      if Length(expanded)=0 then
+        begin
+          output.field(FOutFieldName).asstring := FDefaultValue; //unresoved links should return default value for grid
+          exit;
         end;
-      end else begin
-        output.field(uppercase(FOutFieldName)).asstring := FDefaultValue; //missing fields should return default value for grid
-      end;
+      if Length(expanded)>1 then
+        begin
+          output.field(FOutFieldName).asstring := '?*AMBIGUOUS LINK*';
+          exit;
+        end;
+      if FInFieldName='uid' then
+        begin
+          output.field(FOutFieldName).AsGUID :=expanded[0];
+          exit;
+        end
+      else
+        begin
+          res := conn.Fetch(expanded[0],objo);
+          if res<>edb_OK then
+            begin
+              output.field((FOutFieldName)).asstring := '?*'+CFRE_DB_Errortype[res]+'*';
+              exit;
+            end
+          else
+            begin
+              if objo.FieldExists(FInFieldName) then begin
+                if objo.Field(FInFieldName).AsString='' then begin
+                  output.field((FOutFieldName)).asstring:=FDefaultValue;
+                end else begin
+                  output.field((FOutFieldName)).CloneFromField(objo.Field(FInFieldName));
+                end;
+              end else begin
+                output.field((FOutFieldName)).asstring := FDefaultValue; //missing fields should return default value for grid
+              end;
+            end;
+          if assigned(objo) then
+            objo.Finalize;
+        end;
     end;
-  if assigned(objo) then
-    objo.Finalize;
 end;
 
 { TFRE_DB_TEXT_FT }
@@ -7593,6 +7632,17 @@ begin
   FTransformList.Add(TFRE_DB_TEXT_FT.Create(fieldname,which_text,out_field,output_title,gui_display_type,true,sortable,filterable,fieldSize));
 end;
 
+procedure TFRE_DB_SIMPLE_TRANSFORM.AddMatchingReferencedFieldArray(const ref_field_chain: array of TFRE_DB_NameTypeRL; const target_field: TFRE_DB_String; const output_field: TFRE_DB_String; const output_title: TFRE_DB_String; const display: Boolean; const gui_display_type: TFRE_DB_DISPLAY_TYPE; const sortable: Boolean; const filterable: Boolean; const fieldSize: Integer; const iconID: String; const default_value: TFRE_DB_String; const filterValues: TFRE_DB_StringArray; const hide_in_output: boolean; const linkFieldName: TFRE_DB_NameType);
+var rfc : TFRE_DB_NameTypeRLArray;
+    i   : NativeInt;
+begin
+  setlength(rfc,Length(ref_field_chain));
+  for i:=0 to high(ref_field_chain) do
+    rfc[i] := ref_field_chain[i];
+  FTransformList.Add(TFRE_DB_REFERERENCE_CHAIN_FT.Create(rfc,target_field,output_field,output_title,gui_display_type,display,sortable,filterable,fieldSize,iconID,default_value,filterValues,linkFieldName,true));
+  FHasReflinkTransforms:=true;
+end;
+
 
 function TFRE_DB_SIMPLE_TRANSFORM.GetViewCollectionDescription: TFRE_DB_CONTENT_DESC;
 var vcd : TFRE_DB_VIEW_LIST_LAYOUT_DESC;
@@ -7727,7 +7777,7 @@ begin
   rf := ref_field;
   if (pos('>',rf)=0) and
      (pos('<',rf)=0) then
-       rf := rf+'>';
+       raise EFRE_DB_Exception.Create(edb_ERROR,'old syntax no longer supported, you must use >,< or >>,<< fieldname is mandatory,schemeprefix is optional');
   AddMatchingReferencedField([rf],target_field,output_field,output_title,display,gui_display_type,sortable,filterable,fieldSize,iconID,default_value,filterValues,hide_in_output,linkFieldName);
 end;
 
@@ -8115,6 +8165,7 @@ function TFRE_DB_DERIVED_COLLECTION.ItemCount: Int64;
 var qrydef : TFRE_DB_QUERY_DEF;
     query    : TFRE_DB_QUERY_BASE;
     e        : IFOS_E;
+
 begin
   try
     MustBeInitialized;
@@ -8123,7 +8174,7 @@ begin
     FLastQryID := query.GetQueryID;
     try
       GFRE_TF.Get_Event(e);
-      GFRE_DB_TCDM.cs_InvokeQry(query,nil,nil,0,e);
+      GFRE_DB_TCDM.cs_InvokeQry(query,GetDeriveTransformation,nil,0,e);
       e.WaitFor;
       e.Finalize;
       result := query.GetTotalCount;
@@ -8376,7 +8427,7 @@ begin
     FLastQryID := query.GetQueryID;
     try
       GFRE_TF.Get_Event(e);
-      GFRE_DB_TCDM.cs_InvokeQry(query,nil,nil,0,e);
+      GFRE_DB_TCDM.cs_InvokeQry(query,GetDeriveTransformation,nil,0,e);
       e.WaitFor;
       e.Finalize;
       if Length(query.GetResultData)>0 then
@@ -8559,7 +8610,6 @@ begin
   result := GFRE_DB_SUPPRESS_SYNC_ANSWER;
   try
     MustBeInitialized;
-    writeln('input.dds',input.DumpToString );
     qrydef     := SetupQryDefinitionFromWeb(input);
     query      := GFRE_DB_TCDM.GenerateQueryFromQryDef(qrydef);
     FLastQryID := query.GetQueryID;
@@ -18429,6 +18479,94 @@ begin
     result := TFRE_DB_OBJECTLIST(FFieldData.obj).CheckoutObject(idx)
   else
     raise EFRE_DB_Exception.Create(edb_MISMATCH,'try to access an object array/list but wrong class stored');
+end;
+
+procedure TFRE_DB_FIELD.Add2ArrayFromField(const sourcefield: IFRE_DB_Field);
+var i : NativeInt;
+begin
+  case FieldType of
+    fdbft_NotFound: CloneFromFieldI(sourcefield);
+    fdbft_GUID:
+      begin
+        for i := 0 to high(sourcefield.AsGUIDArr) do
+          AddGuid(sourcefield.AsGUIDArr[i]);
+      end;
+    fdbft_Byte:
+      begin
+        for i := 0 to high(sourcefield.AsByteArr) do
+          AddByte(sourcefield.AsByteArr[i]);
+      end;
+    fdbft_Int16:
+      begin
+        for i := 0 to high(sourcefield.AsInt16Arr) do
+          AddInt16(sourcefield.AsInt16Arr[i]);
+      end;
+    fdbft_UInt16:
+      begin
+        for i := 0 to high(sourcefield.AsUInt16Arr) do
+          AddUInt16(sourcefield.AsUInt16Arr[i]);
+      end;
+    fdbft_Int32:
+      begin
+        for i := 0 to high(sourcefield.AsInt32Arr) do
+          AddInt32(sourcefield.AsInt32Arr[i]);
+      end;
+    fdbft_UInt32:
+      begin
+        for i := 0 to high(sourcefield.AsUInt32Arr) do
+          AddUInt32(sourcefield.AsUInt32Arr[i]);
+      end;
+    fdbft_Int64:
+      begin
+        for i := 0 to high(sourcefield.AsInt64Arr) do
+          AddInt64(sourcefield.AsInt64Arr[i]);
+      end;
+    fdbft_UInt64:
+      begin
+        for i := 0 to high(sourcefield.AsUInt64Arr) do
+          AddUInt64(sourcefield.AsUInt64Arr[i]);
+      end;
+    fdbft_Real32:
+      begin
+        for i := 0 to high(sourcefield.AsReal32Arr) do
+          AddReal32(sourcefield.AsReal32Arr[i]);
+      end;
+    fdbft_Real64:
+      begin
+        for i := 0 to high(sourcefield.AsReal64Arr) do
+          AddReal64(sourcefield.AsReal64Arr[i]);
+      end;
+    fdbft_Currency:
+      begin
+        for i := 0 to high(sourcefield.AsCurrencyArr) do
+          AddCurrency(sourcefield.AsCurrencyArr[i]);
+      end;
+    fdbft_String:
+      begin
+        for i := 0 to high(sourcefield.AsStringArr) do
+          AddString(sourcefield.AsStringArr[i]);
+      end;
+    fdbft_Boolean:
+      begin
+        for i := 0 to high(sourcefield.AsBooleanArr) do
+          AddBoolean(sourcefield.AsBooleanArr[i]);
+      end;
+    fdbft_DateTimeUTC:
+      begin
+        for i := 0 to high(sourcefield.AsDateTimeUTCArr) do
+          AddDateTimeUTC(sourcefield.AsDateTimeUTCArr[i]);
+      end;
+    fdbft_Object:
+      begin
+        for i := 0 to high(sourcefield.AsObjectArr) do
+          AddObjectI(sourcefield.AsObjectArr[i]);
+      end;
+    fdbft_ObjLink:
+      begin
+        for i := 0 to high(sourcefield.AsObjectLinkArray) do
+          AddObjectLink(sourcefield.AsObjectLinkArray[i]);
+      end;
+  end;
 end;
 
 function TFRE_DB_FIELD.CheckOutObjectI: IFRE_DB_Object;

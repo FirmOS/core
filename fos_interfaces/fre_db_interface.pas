@@ -372,6 +372,8 @@ type
     procedure SetAsObjectLink    (const AValue: TFRE_DB_GUID);
   end;
 
+  { IFRE_DB_Field }
+
   IFRE_DB_Field  = interface(IFRE_DB_BASE)
   //private // ? - only for info, as interfaces dont support private methods
     {utility functions}
@@ -565,6 +567,7 @@ type
     function   CheckOutObject              : IFRE_DB_Object;
     function   CheckOutObjectArray         : IFRE_DB_ObjectArray;
     function   CheckOutObjectArrayItem     (const idx : NAtiveInt): IFRE_DB_Object;
+    procedure  Add2ArrayFromField          (const sourcefield:IFRE_DB_Field);
 
     procedure AddGuid                       (const value : TFRE_DB_GUID);
     procedure AddByte                       (const value : Byte);
@@ -1090,22 +1093,23 @@ type
 
   IFRE_DB_SIMPLE_TRANSFORM=interface(IFRE_DB_TRANSFORMOBJECT)
     ['IFDBST']
-    procedure SetSimpleFuncTransformNested   (const callback : IFRE_DB_OBJECT_SIMPLE_CALLBACK_NESTED;const langres: array of TFRE_DB_String);
-    procedure SetSimpleFuncTransform         (const callback : IFRE_DB_OBJECT_SIMPLE_CALLBACK;const langres: array of TFRE_DB_String);
-    procedure AddCollectorscheme             (const format:TFRE_DB_String;const in_fieldlist:TFRE_DB_NameTypeArray;const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false;const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1;const hide_in_output : boolean=false);
-    procedure AddFulltextFilterOnTransformed (const fieldlist:array of TFRE_DB_NameType);  { takes the text rep of the fields (asstring), concatenates them into 'FTX_SEARCH' }
-    procedure AddOneToOnescheme              (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const iconID:String='';const openIconID:String='';const default_value:TFRE_DB_String='';const filterValues:TFRE_DB_StringArray=nil; const hide_in_output : boolean=false);
-    procedure AddPluginField                 (const Pluginclass : TFRE_DB_OBJECT_PLUGIN_CLASS ; const pluginfieldname : TFRE_DB_NameType; const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const iconID:String='';const openIconID:String='';const default_value:TFRE_DB_String='';const filterValues: TFRE_DB_StringArray=nil; const hide_in_output : boolean=false);
-    procedure AddStatisticToOnescheme        (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const fieldSize: Integer=1;const default_value:TFRE_DB_String='');
-    procedure AddMultiToOnescheme            (const in_fieldlist:TFRE_DB_NameTypeArray;const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const iconID:String='';const openIconID:String='';const default_value:TFRE_DB_String='';const hide_in_output : boolean=false);
-    procedure AddProgressTransform           (const valuefield:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const textfield:TFRE_DB_String='';const out_text:TFRE_DB_String='';const maxValue:Single=100;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const hide_in_output : boolean=false);
-    procedure AddConstString                 (const out_field,value:TFRE_DB_String;const display: Boolean=false;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const hide_in_output : boolean=false);
-    procedure AddDBTextToOne                 (const fieldname:TFRE_DB_String;const which_text : TFRE_DB_TEXT_SUBTYPE ; const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const hide_in_output : boolean=false);
-    procedure AddMatchingReferencedField     (const ref_field_chain: array of TFRE_DB_NameTypeRL ; const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const display:Boolean=true;const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const iconID:String='';const default_value:TFRE_DB_String='';const filterValues:TFRE_DB_StringArray=nil; const hide_in_output : boolean=false; const linkFieldName:TFRE_DB_NameType='uid');
-    procedure AddMatchingReferencedField     (const ref_field      : TFRE_DB_NameTypeRL          ; const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const display:Boolean=true;const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const iconID:String='';const default_value:TFRE_DB_String='';const filterValues:TFRE_DB_StringArray=nil; const hide_in_output : boolean=false; const linkFieldName:TFRE_DB_NameType='uid');
-    procedure AddReferencedFieldQuery        (const func : IFRE_DB_QUERY_SELECTOR_FUNCTION;const ref_field_chain: array of TFRE_DB_NameTypeRL ; const output_fields:array of TFRE_DB_String;const output_titles:array of TFRE_DB_String;const langres: array of TFRE_DB_String;const gui_display_type:array of TFRE_DB_DISPLAY_TYPE;const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const hide_in_output: boolean=false);
-    procedure SetFinalRightTransformFunction (const func : IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION;const langres: array of TFRE_DB_String); { set a function that changes the object after, transfrom, order, and filter as last step before data deliverance }
-    procedure GetFinalRightTransformFunction (out   func : IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION;out langres: TFRE_DB_StringArray);
+    procedure SetSimpleFuncTransformNested    (const callback : IFRE_DB_OBJECT_SIMPLE_CALLBACK_NESTED;const langres: array of TFRE_DB_String);
+    procedure SetSimpleFuncTransform          (const callback : IFRE_DB_OBJECT_SIMPLE_CALLBACK;const langres: array of TFRE_DB_String);
+    procedure AddCollectorscheme              (const format:TFRE_DB_String;const in_fieldlist:TFRE_DB_NameTypeArray;const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false;const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const fieldSize: Integer=1;const hide_in_output : boolean=false);
+    procedure AddFulltextFilterOnTransformed  (const fieldlist:array of TFRE_DB_NameType);  { takes the text rep of the fields (asstring), concatenates them into 'FTX_SEARCH' }
+    procedure AddOneToOnescheme               (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const iconID:String='';const openIconID:String='';const default_value:TFRE_DB_String='';const filterValues:TFRE_DB_StringArray=nil; const hide_in_output : boolean=false);
+    procedure AddPluginField                  (const Pluginclass : TFRE_DB_OBJECT_PLUGIN_CLASS ; const pluginfieldname : TFRE_DB_NameType; const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const iconID:String='';const openIconID:String='';const default_value:TFRE_DB_String='';const filterValues: TFRE_DB_StringArray=nil; const hide_in_output : boolean=false);
+    procedure AddStatisticToOnescheme         (const fieldname:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const fieldSize: Integer=1;const default_value:TFRE_DB_String='');
+    procedure AddMultiToOnescheme             (const in_fieldlist:TFRE_DB_NameTypeArray;const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const iconID:String='';const openIconID:String='';const default_value:TFRE_DB_String='';const hide_in_output : boolean=false);
+    procedure AddProgressTransform            (const valuefield:TFRE_DB_String;const out_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const textfield:TFRE_DB_String='';const out_text:TFRE_DB_String='';const maxValue:Single=100;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const hide_in_output : boolean=false);
+    procedure AddConstString                  (const out_field,value:TFRE_DB_String;const display: Boolean=false;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const hide_in_output : boolean=false);
+    procedure AddDBTextToOne                  (const fieldname:TFRE_DB_String;const which_text : TFRE_DB_TEXT_SUBTYPE ; const out_field:TFRE_DB_String;const output_title:TFRE_DB_String='';const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const hide_in_output : boolean=false);
+    procedure AddMatchingReferencedField      (const ref_field_chain: array of TFRE_DB_NameTypeRL ; const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const display:Boolean=true;const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const iconID:String='';const default_value:TFRE_DB_String='';const filterValues:TFRE_DB_StringArray=nil; const hide_in_output : boolean=false; const linkFieldName:TFRE_DB_NameType='uid');
+    procedure AddMatchingReferencedField      (const ref_field      : TFRE_DB_NameTypeRL          ; const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const display:Boolean=true;const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const iconID:String='';const default_value:TFRE_DB_String='';const filterValues:TFRE_DB_StringArray=nil; const hide_in_output : boolean=false; const linkFieldName:TFRE_DB_NameType='uid');
+    procedure AddMatchingReferencedFieldArray (const ref_field_chain: array of TFRE_DB_NameTypeRL;const target_field:TFRE_DB_String;const output_field:TFRE_DB_String='';const output_title:TFRE_DB_String='';const display:Boolean=true;const gui_display_type:TFRE_DB_DISPLAY_TYPE=dt_string;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const iconID:String='';const default_value:TFRE_DB_String='';const filterValues:TFRE_DB_StringArray=nil;const hide_in_output : boolean=false; const linkFieldName:TFRE_DB_NameType='uid');
+    procedure AddReferencedFieldQuery         (const func : IFRE_DB_QUERY_SELECTOR_FUNCTION;const ref_field_chain: array of TFRE_DB_NameTypeRL ; const output_fields:array of TFRE_DB_String;const output_titles:array of TFRE_DB_String;const langres: array of TFRE_DB_String;const gui_display_type:array of TFRE_DB_DISPLAY_TYPE;const display:Boolean=true;const sortable:Boolean=false; const filterable:Boolean=false;const fieldSize: Integer=1;const hide_in_output: boolean=false);
+    procedure SetFinalRightTransformFunction  (const func : IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION;const langres: array of TFRE_DB_String); { set a function that changes the object after, transfrom, order, and filter as last step before data deliverance }
+    procedure GetFinalRightTransformFunction  (out   func : IFRE_DB_FINAL_RIGHT_TRANSFORM_FUNCTION;out langres: TFRE_DB_StringArray);
   end;
 
   { IFRE_DB_FieldSchemeDefinition }
@@ -3443,6 +3447,7 @@ end;
   function  FREDB_H2GArray                       (const str:string):TFRE_DB_GUIDArray;
   function  FREDB_String2Bool                    (const str:string):boolean;
   function  FREDB_SplitRefLinkDescription        (key_description : TFRE_DB_NameTypeRL ; out rl_field,rl_scheme : TFRE_DB_NameTypeRL):boolean; { True if outbound RL}
+  function  FREDB_SplitRefLinkDescriptionEx      (key_description : TFRE_DB_NameTypeRL ; out rl_field,rl_scheme : TFRE_DB_NameTypeRL ; out recursive : boolean):boolean; { True if outbound RL}
 
   function  FREDB_String2NativeInt               (const str:String):NativeInt;
   function  FREDB_String2NativeUInt              (const str:String):NativeUint;
@@ -3455,6 +3460,7 @@ end;
   function  FREDB_Guids_Same                     (const d1, d2 : TFRE_DB_GUID):boolean;
   function  FREDB_Guids_Compare                  (const d1, d2 : TFRE_DB_GUID):NativeInt; // 0=Same 1 = d2>d1 -1 = d1>d2
   function  FREDB_Guid_ArraysSame                (const arr1,arr2: TFRE_DB_GUIDArray):boolean;
+  function  FREDB_GuidArray2String               (const arr: TFRE_DB_GUIDArray):String;
   function  FREDB_CheckGuidsUnique               (const arr: TFRE_DB_GUIDArray):boolean;
   function  FREDB_GuidList2Counted               (const arr: TFRE_DB_GUIDArray; const stop_on_first_double: boolean=false): TFRE_DB_CountedGuidArray;
 
@@ -3478,9 +3484,13 @@ end;
   function  FREDB_NametypeArray2Upper               (const sa : TFRE_DB_NameTypeArray):TFRE_DB_NameTypeArray;
   function  FREDB_StringArray2Lower                 (const sa : TFRE_DB_StringArray):TFRE_DB_StringArray;
   function  FREDB_StringArray2NametypeArray         (const sa : TFRE_DB_StringArray):TFRE_DB_NameTypeArray;
+  function  FREDB_StringArray2NametypeRLArray       (const sa : TFRE_DB_StringArray):TFRE_DB_NameTypeRLArray;
   function  FREDB_StringArrayOpen2StringArray       (const sa : array of TFRE_DB_String):TFRE_DB_StringArray;
+  function  FREDB_ClassArray2StringArray            (const sa : array of TClass):TFRE_DB_StringArray;
   function  FREDB_NametypeArray2StringArray         (const sa : TFRE_DB_NameTypeArray):TFRE_DB_StringArray;
   function  FREDB_NametypeArrayOpen2NametypeArray   (const sa : array of TFRE_DB_NameType):TFRE_DB_NameTypeArray;
+  function  FREDB_StringArray2UidArray              (const sa : array of TFRE_DB_String):TFRE_DB_GUIDArray;
+
   function  FREDB_StringInArrayIdx                  (const src:string;const arr:TFRE_DB_StringArray):NativeInt;
   function  FREDB_StringInNametypeArrayIdx          (const src:string;const arr:TFRE_DB_NameTypeArray):NativeInt;
   function  FREDB_PrefixStringInArray               (const pfx:string;const arr:TFRE_DB_StringArray):boolean;
@@ -4132,6 +4142,48 @@ begin
      end;
 end;
 
+function FREDB_SplitRefLinkDescriptionEx(key_description: TFRE_DB_NameTypeRL; out rl_field, rl_scheme: TFRE_DB_NameTypeRL; out recursive: boolean): boolean;
+var fpos,tpos : NativeInt;
+    incr : NativeInt;
+begin
+  key_description:=uppercase(key_description);
+  fpos := pos('>>',key_description);
+  tpos := pos('<<',key_description);
+  if (fpos>0) or (tpos>0) then
+    begin
+      recursive := true;
+    end
+  else
+    begin
+      recursive := false;
+      fpos  := pos('>',key_description);
+      tpos  := pos('<',key_description);
+    end;
+
+  if (fpos=0) and
+     (tpos=0) then
+       raise EFRE_DB_Exception.Create(edb_ERROR,'invalid linkref spec, must include exactly one "<" or ">" ');
+  if (fpos>0) and
+     (tpos>0) then
+       raise EFRE_DB_Exception.Create(edb_ERROR,'invalid linkref spec, must include exactly "<" or ">"');
+
+  if recursive then
+    incr := 2
+  else
+    incr := 1;
+
+  if result then
+   begin
+     rl_field  := Copy(key_description,1,fpos-1);
+     rl_scheme := Copy(key_description,fpos+incr,maxint);
+   end
+  else
+   begin
+     rl_scheme := Copy(key_description,1,tpos-1);
+     rl_field  := Copy(key_description,tpos+incr,maxint);
+   end;
+end;
+
 
 function FREDB_String2NativeInt(const str: String): NativeInt;
 var Error: word;
@@ -4213,6 +4265,19 @@ begin
     if not FREDB_Guids_Same(arr1[i],arr2[i]) then
       exit(false);
   exit(true);
+end;
+
+function FREDB_GuidArray2String(const arr: TFRE_DB_GUIDArray): String;
+var i : NativeInt;
+begin
+  result:= '[';
+  for i := 0 to high(arr)-1 do
+    begin
+      result := result+arr[i].AsHexString+',';
+    end;
+  if High(arr)>=0 then
+    result := result+arr[high(arr)].AsHexString;
+  result:=result+']';
 end;
 
 function FREDB_CheckGuidsUnique(const arr: TFRE_DB_GUIDArray): boolean;
@@ -4465,12 +4530,29 @@ begin
     result[i] := sa[i];
 end;
 
+function FREDB_StringArray2NametypeRLArray(const sa: TFRE_DB_StringArray): TFRE_DB_NameTypeRLArray;
+var
+  i: NativeInt;
+begin
+  SetLength(result,Length(sa));
+  for i:=0 to high(result) do
+    result[i] := sa[i];
+end;
+
 function FREDB_StringArrayOpen2StringArray(const sa: array of TFRE_DB_String): TFRE_DB_StringArray;
 var i :NativeInt;
 begin
   SetLength(result,length(sa));
   for i := 0 to high(sa) do
     result[i] := sa[i];
+end;
+
+function FREDB_ClassArray2StringArray(const sa: array of TClass): TFRE_DB_StringArray;
+var i :NativeInt;
+begin
+  SetLength(result,length(sa));
+  for i := 0 to high(sa) do
+    result[i] := sa[i].ClassName;
 end;
 
 function FREDB_NametypeArray2StringArray(const sa: TFRE_DB_NameTypeArray): TFRE_DB_StringArray;
@@ -4489,6 +4571,15 @@ begin
   SetLength(result,Length(sa));
   for i:=0 to high(result) do
     result[i] := sa[i];
+end;
+
+function FREDB_StringArray2UidArray(const sa: array of TFRE_DB_String): TFRE_DB_GUIDArray;
+var
+  i: NativeInt;
+begin
+  SetLength(result,Length(sa));
+  for i:=0 to high(result) do
+    result[i].SetFromHexString(sa[i]);
 end;
 
 function FREDB_StringInArrayIdx(const src: string; const arr: TFRE_DB_StringArray): NativeInt;

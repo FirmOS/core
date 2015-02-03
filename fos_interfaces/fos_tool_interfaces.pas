@@ -331,6 +331,7 @@ type
 
     function  SepLeft                   (const Value, Delimiter: Ansistring): Ansistring;
     function  SepRight                  (const Value, Delimiter: Ansistring): Ansistring;
+    function  SepLeftRight              (const Value, Delimiter: Ansistring; out left, right: Ansistring): boolean;
     function  ValToken2Str              (const Value: integer;   const TokArr:Array of TFOS_VALUETOKEN;const unknown:string=''):String;
     function  BitToken2Str              (const Value: integer;   const TokArr:Array of TFOS_VALUETOKEN):String;
 

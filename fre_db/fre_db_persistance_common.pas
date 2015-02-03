@@ -464,7 +464,8 @@ type
     destructor  Destroy                 ; override;
 
 
-    function    GetReferencesRC         (const obj_uid: TFRE_DB_GUID; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType; const user_context: PFRE_DB_GUID              ; const concat_call: boolean=false): TFRE_DB_GUIDArray;
+    function    GetReferencesRC         (const obj_uid: TFRE_DB_GUID; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType; const user_context: PFRE_DB_GUID ; const concat_call: boolean=false): TFRE_DB_GUIDArray;
+    function    GetReferencesRCRecurse  (const obj_uid: TFRE_DB_GUID; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): TFRE_DB_GUIDArray;
     function    GetReferencesCountRC    (const obj_uid:TFRE_DB_GUID;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType='' ; const user_context: PFRE_DB_GUID=nil ; const concat_call: boolean=false): NativeInt;
     function    GetReferencesDetailedRC (const obj_uid:TFRE_DB_GUID;const from:boolean ; const scheme_prefix_filter : TFRE_DB_NameType ='' ; const field_exact_filter : TFRE_DB_NameType='' ; const user_context: PFRE_DB_GUID=nil ; const concat_call: boolean=false): TFRE_DB_ObjectReferences;
     procedure   ExpandReferencesRC      (const user_context: PFRE_DB_GUID; const ObjectList: TFRE_DB_GUIDArray; const ref_constraints: TFRE_DB_NameTypeRLArray; out expanded_refs: TFRE_DB_GUIDArray);
@@ -3950,6 +3951,59 @@ begin
     end;
 end;
 
+function TFRE_DB_Master_Data.GetReferencesRCRecurse(const obj_uid: TFRE_DB_GUID; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType; const user_context: PFRE_DB_GUID): TFRE_DB_GUIDArray;
+var uti    : TFRE_DB_USER_RIGHT_TOKEN;
+    spf    : TFRE_DB_NameType;
+    fef    : TFRE_DB_NameType;
+    cnt    : NativeInt;
+    concat : TFRE_DB_GUIDArray;
+
+    function GetReferencesRCRecurseInt(const obj_uid: TFRE_DB_GUID):NativeInt;
+    var i   : NativeInt;
+       refs : TFRE_DB_ObjectReferences;
+       cr   : boolean;
+    begin
+      result := 0;
+      refs   := GetReferencesDetailedRC(obj_uid,from,'',field_exact_filter,user_context); { disable scheme filter }
+      for i:=0 to High(refs) do
+        begin
+          cr := _CheckFetchRightUID(refs[i].linked_uid,uti);
+          if cr then
+            inc(result); { there are accessible parents }
+          if pos(spf,refs[i].schemename)=1 then { end schemename is ok }
+            begin
+              if cr then { rights are ok }
+                begin
+                  if cnt=Length(concat) then
+                    SetLength(concat,Length(concat)+25);
+                  concat[cnt] := refs[i].linked_uid; { add link }
+                  inc(cnt);
+                end
+            end
+          else { wrong scheme }
+            begin
+              if (GetReferencesRCRecurseInt(refs[i].linked_uid)=0) and (spf='') then { no parents, and search til end }
+                begin
+                  if cnt=Length(concat) then
+                    SetLength(concat,Length(concat)+25);
+                  concat[cnt] := refs[i].linked_uid; { add link }
+                  inc(cnt);
+                end;
+            end;
+        end;
+    end;
+
+begin
+  G_GetUserToken(user_context,uti,true);
+  spf := uppercase(scheme_prefix_filter);
+  fef := uppercase(field_exact_filter);
+  cnt := 0;
+  SetLength(concat,0);
+  GetReferencesRCRecurseInt(obj_uid);
+  SetLength(concat,cnt);
+  result := concat;
+end;
+
 function TFRE_DB_Master_Data.GetReferencesCountRC(const obj_uid: TFRE_DB_GUID; const from: boolean; const scheme_prefix_filter: TFRE_DB_NameType; const field_exact_filter: TFRE_DB_NameType; const user_context: PFRE_DB_GUID; const concat_call: boolean): NativeInt;
 var obr    : TFRE_DB_ObjectReferences;
     obrc   : TFRE_DB_ObjectReferences;
@@ -4046,16 +4100,21 @@ var i        : NativeInt;
     count    : NativeInt;
 
   procedure FetchChained(uid:TFRE_DB_GUID ; field_chain : TFRE_DB_NameTypeRLArray ; depth : NativeInt);
-  var obrefs   : TFRE_DB_GUIDArray; //TFRE_DB_ObjectReferences;
+  var obrefs   : TFRE_DB_GUIDArray;
       i        : NativeInt;
       scheme   : TFRE_DB_NameType;
       field    : TFRE_DB_NameType;
       outbound : Boolean;
+      recurse  : boolean;
   begin
     if depth<length(field_chain) then
       begin
-        outbound := FREDB_SplitRefLinkDescription(field_chain[depth],field,scheme);
-        obrefs   := GetReferencesRC(uid,outbound,scheme,field,user_context);
+        outbound := FREDB_SplitRefLinkDescriptionEx(field_chain[depth],field,scheme,recurse);
+        if not recurse then
+          obrefs   := GetReferencesRC(uid,outbound,scheme,field,user_context,false)
+        else
+          obrefs   := GetReferencesRCRecurse(uid,outbound,scheme,field,user_context);
+
         for i := 0 to  high(obrefs) do
           begin
             FetchChained(obrefs[i],field_chain,depth+1);

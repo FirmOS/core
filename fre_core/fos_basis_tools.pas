@@ -73,6 +73,7 @@ type
 
     function  SepLeft                   (const Value, Delimiter: Ansistring): Ansistring;
     function  SepRight                  (const Value, Delimiter: Ansistring): Ansistring;
+    function  SepLeftRight              (const Value, Delimiter: Ansistring; out left, right: Ansistring): boolean;
     function  ValToken2Str              (const Value: integer;   const TokArr:Array of TFOS_VALUETOKEN;const unknown:string=''):String;
     function  BitToken2Str              (const Value: integer;   const TokArr:Array of TFOS_VALUETOKEN):String;
 
@@ -733,6 +734,21 @@ begin
    Result:=Copy(Value,x+1,Length(Value)-x);
   end else begin
    result:='';
+  end;
+end;
+
+function TFOS_DEFAULT_BASISTOOLS.SepLeftRight(const Value, Delimiter: Ansistring; out left, right: Ansistring):boolean;
+var x: Integer;
+begin
+  x := Pos(Delimiter, Value);
+  if x > 0 then begin
+    x := x+Length(Delimiter)-1;
+    right  := Copy(Value,x+1,Length(Value)-x);
+    left   := Copy(Value,1, x-1);
+    result := true;
+  end else begin
+    result := false;
+    left   := Value;
   end;
 end;
 
