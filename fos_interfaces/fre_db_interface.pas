@@ -4167,6 +4167,11 @@ begin
      (tpos>0) then
        raise EFRE_DB_Exception.Create(edb_ERROR,'invalid linkref spec, must include exactly "<" or ">"');
 
+  if fpos>0 then
+    result := true
+  else
+    result := false;
+
   if recursive then
     incr := 2
   else
