@@ -210,6 +210,8 @@ const
   cFOS_IID_DERIVED_COLL     = 'ID_CDC';
   cFOS_IID_SCHEME_COLL      = 'ID_CSC';
 
+  cFOS_WF_GROUPS_DC         = 'WF_GROUPS_DC';
+
   cFOS_RADIAL_SITEMAP_SCALE = 0.8;
 
   cFRE_DB_MAX_CLIENT_CONTINUATIONS = 500;
@@ -5605,14 +5607,14 @@ begin
   group:=scheme.AddInputGroup('main').Setup(GetTranslateableTextKey('scheme_main_group'));
   group.AddInput('step_caption',GetTranslateableTextKey('scheme_step_caption'));
   group.AddInput('step_id',GetTranslateableTextKey('scheme_step_id'));
-  group.AddInput('designated_group',GetTranslateableTextKey('scheme_designated_group'),false,false,'','',false,dh_chooser_combo,coll_GROUP,true);
-  group.AddInput('auth_group',GetTranslateableTextKey('scheme_auth_group'),false,false,'','',false,dh_chooser_combo,coll_GROUP);
+  group.AddInput('designated_group',GetTranslateableTextKey('scheme_designated_group'),false,false,'',cFOS_WF_GROUPS_DC,true,dh_chooser_combo,coll_GROUP,true);
+  group.AddInput('auth_group',GetTranslateableTextKey('scheme_auth_group'),false,false,'',cFOS_WF_GROUPS_DC,true,dh_chooser_combo,coll_GROUP);
   group.AddInput('allowed_time',GetTranslateableTextKey('scheme_allowed_time'));
   group.AddInput('action',GetTranslateableTextKey('scheme_action'),false,false,'','',false,dh_chooser_combo,coll_WFACTION,true);
 
   group:=scheme.AddInputGroup('error_main').Setup(GetTranslateableTextKey('scheme_error_main_group'));
   group.AddInput('step_caption',GetTranslateableTextKey('scheme_step_caption'));
-  group.AddInput('designated_group',GetTranslateableTextKey('scheme_designated_group'),false,false,'','',false,dh_chooser_combo,coll_GROUP,true);
+  group.AddInput('designated_group',GetTranslateableTextKey('scheme_designated_group'),false,false,'',cFOS_WF_GROUPS_DC,true,dh_chooser_combo,coll_GROUP,true);
   group.AddInput('action',GetTranslateableTextKey('scheme_action'),false,false,'','',false,dh_chooser_combo,coll_WFACTION,true);
 end;
 

@@ -4279,10 +4279,6 @@ begin
   if (rightClass<>'') and (fieldDef.GetFieldType<>fdbft_ObjLink) then
     raise EFRE_DB_Exception.Create(edb_ERROR,'domain chooser field has to be of type fdbft_ObjLink: %s:(%s)',[scheme.DefinedSchemeName,schemefield]);
 
-  if (standard_coll<>coll_NONE) and (field_backing_collection<>'') then
-    raise EFRE_DB_Exception.Create(edb_ERROR,'standard_coll has to be coll_NONE if field_backing_collection is defined');
-
-
   fdg   := TFRE_DB_FieldDef4Group.Create;
   props := [];
 

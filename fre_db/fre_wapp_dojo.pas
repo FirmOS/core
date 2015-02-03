@@ -607,8 +607,8 @@ implementation
                              defValue:=defValue+']';
                              jsContentAdd('" value: '+defValue+'"+');
                            end;
-                           _BuildInputDep(co);
                            jsContentAdd('"''>"+');
+                           _BuildInputDep(co);
                            for i := 0 to store.Field('entries').ValueCount - 1 do begin
                              jsContentAdd('"  <option value='''+store.Field('entries').AsObjectItem[i].Field('value').AsString+'''>'+_EscapeValueString(store.Field('entries').AsObjectItem[i].Field('caption').AsString)+'</option>"+');
                            end;
@@ -623,8 +623,8 @@ implementation
                            if co.Field('defaultValue').AsString<>'' then begin
                              jsContentAdd('" value: \"'+ _EscapeValueString(co.Field('defaultValue').AsString) +'\""+');
                            end;
-                           _BuildInputDep(co);
                            jsContentAdd('"''>"+');
+                           _BuildInputDep(co);
                            for i := 0 to store.Field('entries').ValueCount - 1 do begin
                              jsContentAdd('"  <option value='''+store.Field('entries').AsObjectItem[i].Field('value').AsString+'''>'+_EscapeValueString(store.Field('entries').AsObjectItem[i].Field('caption').AsString)+'</option>"+');
                            end;
@@ -677,8 +677,8 @@ implementation
                              end;
                              jsContentAdd('"]\""+');
                            end;
-                           _BuildInputDep(co);
                            jsContentAdd('"''>"+');
+                           _BuildInputDep(co);
                            if not co.Field('required').AsBoolean or co.Field('addEmptyForRequired').AsBoolean then begin
                              jsContentAdd('"  <option value=''''></option>"+');
                            end;

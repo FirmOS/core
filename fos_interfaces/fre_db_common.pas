@@ -2025,6 +2025,7 @@ implementation
       dataCollIsDerived  := obj.GetCollectionIsDerived;
       standardColl       := obj.GetStandardCollection;
       store              := nil;
+      coll               := nil;
       if (dataCollectionName<>'') or (standardColl<>coll_NONE) then begin
         if obj.GetHidden then begin
           if Assigned(group) then begin
@@ -2034,23 +2035,32 @@ implementation
           end;
           (inputField as TFRE_DB_INPUT_DESC).Describe('',prefix+obj.GetfieldName,false,false,false,true,obj.GetDefault);
         end else begin
-          case standardColl of
-            coll_DOMAIN  : coll:=session.GetDBConnection.AdmGetDomainCollection;
-            coll_GROUP   : coll:=session.GetDBConnection.AdmGetGroupCollection;
-            coll_USER    : coll:=session.GetDBConnection.AdmGetUserCollection;
-            coll_WFACTION: coll:=session.GetDBConnection.AdmGetWorkFlowMethCollection;
-            coll_NONE    : begin
-                             if dataCollIsDerived then begin
-                               dcoll:=session.FetchDerivedCollection(dataCollectionName);
-                               if not assigned(dcoll) then raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'The specified fieldbacking derived collection was not found : ['+dataCollectionName+']');
-                               store:=dcoll.GetStoreDescription as TFRE_DB_STORE_DESC;
-                             end else begin
-                               coll := session.GetDBConnection.GetCollection(dataCollectionName);
-                               if not assigned(coll) then raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'The specified fieldbacking datacollection was not found : ['+dataCollectionName+']');
-                               store:=TFRE_DB_STORE_DESC.create.Describe();
-                               coll.ForAll(@addObjects);
-                             end;
-                           end;
+          //try dataCollection first (standard collection can be used as fallback)
+          if dataCollectionName<>'' then begin
+            if dataCollIsDerived then begin
+              dcoll:=session.FetchDerivedCollection(dataCollectionName);
+              if assigned(dcoll) then begin
+                store:=dcoll.GetStoreDescription as TFRE_DB_STORE_DESC;
+              end else begin
+                if standardColl=coll_NONE then
+                  raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'The specified fieldbacking derived collection was not found : ['+dataCollectionName+']');
+              end;
+            end else begin
+              coll := session.GetDBConnection.GetCollection(dataCollectionName);
+              if not assigned(coll) and (standardColl=coll_NONE) then raise EFRE_DB_Exception.Create(edb_NOT_FOUND,'The specified fieldbacking datacollection was not found : ['+dataCollectionName+']');
+            end;
+          end;
+          if not Assigned(store) and not Assigned(coll) then begin
+            case standardColl of
+              coll_DOMAIN  : coll:=session.GetDBConnection.AdmGetDomainCollection;
+              coll_GROUP   : coll:=session.GetDBConnection.AdmGetGroupCollection;
+              coll_USER    : coll:=session.GetDBConnection.AdmGetUserCollection;
+              coll_WFACTION: coll:=session.GetDBConnection.AdmGetWorkFlowMethCollection;
+            end;
+          end;
+          if Assigned(coll) then begin
+            store:=TFRE_DB_STORE_DESC.create.Describe();
+            coll.ForAll(@addObjects);
           end;
           if Assigned(group) then begin
             chooserField:=group.AddChooser;
