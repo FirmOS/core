@@ -56,6 +56,8 @@ var
     cFRE_INT_TUNE_SYSFILTEXTENSION_SZ : NativeUint =  128;
     cFRE_INT_TUNE_FILTER_PURGE_TO     : NativeUint =  0; // 5*1000; // 0 DONT PURGE
 
+    cFRE_DBG_DISABLE_TRANS_ORDER_STORE : boolean   = true;
+
 
 {
   TDM - Transformed Data Manager
@@ -4661,7 +4663,8 @@ begin
         result := Ftransdata.FRecordCount;
         if result=0 then
           begin
-            G_TCDM.AddBaseTransformedData(Ftransdata); { need to add the transformed data, even if zero to allow updates for it }
+            if not cFRE_DBG_DISABLE_TRANS_ORDER_STORE then
+              G_TCDM.AddBaseTransformedData(Ftransdata); { need to add the transformed data, even if zero to allow updates for it }
             FOrdered :=G_TCDM.CreateTransformedOrdered(self);
             FOrdered.OrderTheData(0,0,-1);
             FOrdered.GetOrCreateFiltercontainer(Filterdef,FFiltered);
@@ -5897,7 +5900,8 @@ end;
 function TFRE_DB_TRANSDATA_MANAGER.CreateTransformedOrdered(const generating_qry: TFRE_DB_QUERY): TFRE_DB_TRANSFORMED_ORDERED_DATA;
 begin
    result := TFRE_DB_TRANSFORMED_ORDERED_DATA.Create(generating_qry.FOrderDef,generating_qry.Ftransdata);     { generate the ordered, transformed data (next layer) }
-   FOrders.Add(lowercase(result.FOrderDef.Orderdatakey),result);
+   if not cFRE_DBG_DISABLE_TRANS_ORDER_STORE then
+     FOrders.Add(lowercase(result.FOrderDef.Orderdatakey),result);
 end;
 
 function TFRE_DB_TRANSDATA_MANAGER.GenerateQueryFromQryDef(const qry_def: TFRE_DB_QUERY_DEF): TFRE_DB_QUERY_BASE;
