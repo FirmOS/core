@@ -721,20 +721,22 @@ implementation
     labelclass    : String;
     addGroupId    : String;
     hasCloseButton: Boolean;
+    hasRequired   : Boolean;
+    ids           : TFRE_DB_StringArray;
 
-    function _checkBlockChildren(const block: TFRE_DB_INPUT_BLOCK_DESC):Boolean;
+    procedure _checkBlockChildren(const block: TFRE_DB_INPUT_BLOCK_DESC; var hasRequired: Boolean; var ids: TFRE_DB_StringArray);
     var
       i : Integer;
     begin
-      Result:=false;
       for i := 0 to elem.Field('elements').ValueCount - 1 do begin
         if block.Field('elements').AsObjectItem[i].Implementor_HC is TFRE_DB_INPUT_BLOCK_DESC then begin
-          Result:=_checkBlockChildren(block.Field('elements').AsObjectItem[i].Implementor_HC as TFRE_DB_INPUT_BLOCK_DESC);
-          if Result then exit;
-        end;
-        if block.Field('elements').AsObjectItem[i].FieldExists('required') and block.Field('elements').AsObjectItem[i].Field('required').AsBoolean then begin
-          Result:=true;
-          exit;
+          _checkBlockChildren(block.Field('elements').AsObjectItem[i].Implementor_HC as TFRE_DB_INPUT_BLOCK_DESC,hasRequired,ids);
+        end else begin
+          SetLength(ids,Length(ids)+1);
+          ids[Length(ids)-1]:=block.Field('elements').AsObjectItem[i].Field('id').AsString;
+          if block.Field('elements').AsObjectItem[i].FieldExists('required') and block.Field('elements').AsObjectItem[i].Field('required').AsBoolean then begin
+            hasRequired:=true;
+          end;
         end;
       end;
     end;
@@ -769,8 +771,10 @@ implementation
       end;
     end else begin
       if elem is TFRE_DB_INPUT_BLOCK_DESC then begin
+        _checkBlockChildren(elem as TFRE_DB_INPUT_BLOCK_DESC, hasRequired, ids);
+        jsContentAdd('"<tr firmosGroup='''+groupId+''' childIds=\"'+_BuildJSArray(ids)+'\" '+BoolToStr(hidden,' class=''firmosFormBlock'' style=''display:none;''','')+' id='''+elem.Field('id').AsString+'''>"+');
         if elem.Field('caption').AsString<>'' then begin
-          if _checkBlockChildren(elem as TFRE_DB_INPUT_BLOCK_DESC) then begin
+          if hasRequired then begin
             labelclass:='firmosFormLabelRequired';
           end else begin
             labelclass:='firmosFormLabel';
@@ -779,7 +783,7 @@ implementation
           jsContentAdd('"<label for='''+elem.Field('id').AsString+''' id='''+elem.Field('id').AsString+'_label'' class='''+labelclass+'''>'+elem.Field('caption').AsString+': </label>"+');
           jsContentAdd('"</td><td>"+');
         end else begin
-          jsContentAdd('"<tr id='''+elem.Field('id').AsString+'''><td colspan=2>"+');
+          jsContentAdd('"<td colspan=2>"+');
         end;
         for i := 0 to elem.Field('elements').ValueCount - 1 do begin
           if i=0 then begin
