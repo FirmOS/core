@@ -458,30 +458,30 @@ type
     //@ Adds the given InputGroupSchemeDefinition to the form and returns the TFRE_DB_INPUT_GROUP_DESC.
     //@ See TFRE_DB_INPUT_GROUP_DESC.
     function  AddSchemeFormGroup      (const schemeGroup: IFRE_DB_InputGroupSchemeDefinition ; const session : IFRE_DB_UserSession; const collapsible: Boolean=false; const collapsed: Boolean=false; const relSize:Integer=1; const groupPreFix:String=''; const groupRequired:Boolean=true; const hideGroupHeader:Boolean=false): TFRE_DB_INPUT_GROUP_DESC; reintroduce;
-    //@ Adds the given input fields of the schemeGroup as fields of the input block with relSize 1
+    //@ Adds the given input fields of the schemeGroup as fields of the input block with relSize 10
     function  AddSchemeFormGroupInputs(const schemeGroup: IFRE_DB_InputGroupSchemeDefinition ; const session : IFRE_DB_UserSession;  const groupPreFix:String=''; const groupRequired:Boolean=true): TFRE_DB_INPUT_BLOCK_DESC;
     //@ Creates a new input field and adds it to the form. See also TFRE_DB_INPUT_DESC.
-    function  AddInput                (const relSize:Integer=1): TFRE_DB_INPUT_DESC; reintroduce;
+    function  AddInput                (const relSize:Integer=10): TFRE_DB_INPUT_DESC; reintroduce;
     //@ Creates a new description and adds it to the form. See also TFRE_DB_INPUT_DESCRIPTION_DESC.
-    function  AddDescription          (const relSize:Integer=1): TFRE_DB_INPUT_DESCRIPTION_DESC; reintroduce;
+    function  AddDescription          (const relSize:Integer=10): TFRE_DB_INPUT_DESCRIPTION_DESC; reintroduce;
     //@ Creates a new input button and adds it to the form. See also TFRE_DB_INPUT_BUTTON_DESC.
-    function  AddInputButton          (const relSize:Integer=1): TFRE_DB_INPUT_BUTTON_DESC; reintroduce;
+    function  AddInputButton          (const relSize:Integer=10): TFRE_DB_INPUT_BUTTON_DESC; reintroduce;
     //@ Creates a new boolean field and adds it to the form. See also TFRE_DB_INPUT_BOOL_DESC.
-    function  AddBool                 (const relSize:Integer=1): TFRE_DB_INPUT_BOOL_DESC; reintroduce;
+    function  AddBool                 (const relSize:Integer=10): TFRE_DB_INPUT_BOOL_DESC; reintroduce;
     //@ Creates a new boolean field and adds it to the form. See also TFRE_DB_INPUT_BOOL_DESC.
-    function  AddNumber               (const relSize:Integer=1): TFRE_DB_INPUT_NUMBER_DESC; reintroduce;
+    function  AddNumber               (const relSize:Integer=10): TFRE_DB_INPUT_NUMBER_DESC; reintroduce;
     //@ Creates a new chooser and adds it to the form. See also TFRE_DB_INPUT_CHOOSER_DESC.
-    function  AddChooser              (const relSize:Integer=1): TFRE_DB_INPUT_CHOOSER_DESC; reintroduce;
+    function  AddChooser              (const relSize:Integer=10): TFRE_DB_INPUT_CHOOSER_DESC; reintroduce;
     //@ Creates a new date field and adds it to the form. See also TFRE_DB_INPUT_DATE_DESC.
-    function  AddDate                 (const relSize:Integer=1): TFRE_DB_INPUT_DATE_DESC; reintroduce;
+    function  AddDate                 (const relSize:Integer=10): TFRE_DB_INPUT_DATE_DESC; reintroduce;
     //@ Creates a new file field and adds it to the form. See also TFRE_DB_INPUT_FILE_DESC.
-    function  AddFile                 (const relSize:Integer=1): TFRE_DB_INPUT_FILE_DESC; reintroduce;
+    function  AddFile                 (const relSize:Integer=10): TFRE_DB_INPUT_FILE_DESC; reintroduce;
     //@ Creates a new input group and adds it to the form. See also TFRE_DB_INPUT_GROUP_DESC.
-    function  AddGroup                (const relSize:Integer=1): TFRE_DB_INPUT_GROUP_DESC; reintroduce;
+    function  AddGroup                (const relSize:Integer=10): TFRE_DB_INPUT_GROUP_DESC; reintroduce;
     //@ Creates a new input proxy group and adds it to the form. See also TFRE_DB_INPUT_GROUP_PROXY_DESC.
-    function  AddGroupProxy           (const relSize:Integer=1): TFRE_DB_INPUT_GROUP_PROXY_DESC; reintroduce;
+    function  AddGroupProxy           (const relSize:Integer=10): TFRE_DB_INPUT_GROUP_PROXY_DESC; reintroduce;
     //@ Creates a new input block and adds it to the form. See also TFRE_DB_INPUT_BLOCK_DESC.
-    function  AddBlock                (const relSize:Integer=1): TFRE_DB_INPUT_BLOCK_DESC; reintroduce;
+    function  AddBlock                (const relSize:Integer=10): TFRE_DB_INPUT_BLOCK_DESC; reintroduce;
     //@ Creates a new grid and adds it to the form. See also TFRE_DB_VIEW_LIST_DESC.
     //function  AddList                 (const relSize:Integer=1): TFRE_DB_VIEW_LIST_DESC; reintroduce;
   end;
