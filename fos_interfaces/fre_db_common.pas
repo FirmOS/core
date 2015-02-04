@@ -377,6 +377,7 @@ type
     function  GetStore                (const id:String): TFRE_DB_STORE_DESC;virtual;
     function  Describe                (const caption:String;const defaultClose:Boolean;const sendChangedFieldsOnly: Boolean; const editable: Boolean; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC; const onChangeDelay:Integer; const hideEmptyGroups: Boolean): TFRE_DB_FORM_DESC;
     procedure _FillWithObjectValues   (const obj: IFRE_DB_Object;const session: IFRE_DB_UserSession; const prefix:String);
+    procedure _addFields              (const schemeGroup: IFRE_DB_InputGroupSchemeDefinition; const session: IFRE_DB_UserSession; const fields: IFRE_DB_FieldDef4GroupArr; const prefix:String; const groupPreFix:String; const groupRequired: Boolean; const group: TFRE_DB_INPUT_GROUP_DESC; const block: TFRE_DB_INPUT_BLOCK_DESC);
   public
     //@ Return the form element with the given id.
     function  GetFormElement          (const elementId:String): TFRE_DB_CONTENT_DESC;
@@ -393,7 +394,7 @@ type
     //@ Adds the given InputGroupSchemeDefinition to the form and returns the TFRE_DB_INPUT_GROUP_DESC.
     //@ if hideGroupHeader is set to true parameters collapsible and collapsed are ignored
     //@ See TFRE_DB_INPUT_GROUP_DESC.
-    function  AddSchemeFormGroup      (const schemeGroup: IFRE_DB_InputGroupSchemeDefinition ; const session : IFRE_DB_UserSession; const collapsible: Boolean=false; const collapsed: Boolean=false; const groupPreFix:String=''; const groupRequired:Boolean=true; const hideGroupHeader:Boolean=false): TFRE_DB_INPUT_GROUP_DESC; virtual;
+    function  AddSchemeFormGroup      (const schemeGroup: IFRE_DB_InputGroupSchemeDefinition; const session : IFRE_DB_UserSession; const collapsible: Boolean=false; const collapsed: Boolean=false; const groupPreFix:String=''; const groupRequired:Boolean=true; const hideGroupHeader:Boolean=false): TFRE_DB_INPUT_GROUP_DESC; virtual;
     //@ Creates a new input field and adds it to the form. See also TFRE_DB_INPUT_DESC.
     function  AddInput                : TFRE_DB_INPUT_DESC; virtual;
     //@ Creates a new description and adds it to the form. See also TFRE_DB_INPUT_DESCRIPTION_DESC.
@@ -453,34 +454,36 @@ type
     function  GetStore    (const id: String):TFRE_DB_STORE_DESC;override;
   public
     //@ Describes an horizontal input block within a form (e.g. Favourite 3 colours: input input input).
-    function  Describe    (const caption:String=''):TFRE_DB_INPUT_BLOCK_DESC;
+    function  Describe    (const caption:String=''; const id: String=''):TFRE_DB_INPUT_BLOCK_DESC;
     //@ Adds the given InputGroupSchemeDefinition to the form and returns the TFRE_DB_INPUT_GROUP_DESC.
     //@ See TFRE_DB_INPUT_GROUP_DESC.
-    function  AddSchemeFormGroup   (const schemeGroup: IFRE_DB_InputGroupSchemeDefinition ; const session : IFRE_DB_UserSession; const collapsible: Boolean=false; const collapsed: Boolean=false; const relSize:Integer=1): TFRE_DB_INPUT_GROUP_DESC; reintroduce;
+    function  AddSchemeFormGroup      (const schemeGroup: IFRE_DB_InputGroupSchemeDefinition ; const session : IFRE_DB_UserSession; const collapsible: Boolean=false; const collapsed: Boolean=false; const relSize:Integer=1; const groupPreFix:String=''; const groupRequired:Boolean=true; const hideGroupHeader:Boolean=false): TFRE_DB_INPUT_GROUP_DESC; reintroduce;
+    //@ Adds the given input fields of the schemeGroup as fields of the input block with relSize 1
+    function  AddSchemeFormGroupInputs(const schemeGroup: IFRE_DB_InputGroupSchemeDefinition ; const session : IFRE_DB_UserSession;  const groupPreFix:String=''; const groupRequired:Boolean=true): TFRE_DB_INPUT_BLOCK_DESC;
     //@ Creates a new input field and adds it to the form. See also TFRE_DB_INPUT_DESC.
-    function  AddInput             (const relSize:Integer=1): TFRE_DB_INPUT_DESC; reintroduce;
+    function  AddInput                (const relSize:Integer=1): TFRE_DB_INPUT_DESC; reintroduce;
     //@ Creates a new description and adds it to the form. See also TFRE_DB_INPUT_DESCRIPTION_DESC.
-    function  AddDescription       (const relSize:Integer=1): TFRE_DB_INPUT_DESCRIPTION_DESC; reintroduce;
+    function  AddDescription          (const relSize:Integer=1): TFRE_DB_INPUT_DESCRIPTION_DESC; reintroduce;
     //@ Creates a new input button and adds it to the form. See also TFRE_DB_INPUT_BUTTON_DESC.
-    function  AddInputButton       (const relSize:Integer=1): TFRE_DB_INPUT_BUTTON_DESC; reintroduce;
+    function  AddInputButton          (const relSize:Integer=1): TFRE_DB_INPUT_BUTTON_DESC; reintroduce;
     //@ Creates a new boolean field and adds it to the form. See also TFRE_DB_INPUT_BOOL_DESC.
-    function  AddBool              (const relSize:Integer=1): TFRE_DB_INPUT_BOOL_DESC; reintroduce;
+    function  AddBool                 (const relSize:Integer=1): TFRE_DB_INPUT_BOOL_DESC; reintroduce;
     //@ Creates a new boolean field and adds it to the form. See also TFRE_DB_INPUT_BOOL_DESC.
-    function  AddNumber            (const relSize:Integer=1): TFRE_DB_INPUT_NUMBER_DESC; reintroduce;
+    function  AddNumber               (const relSize:Integer=1): TFRE_DB_INPUT_NUMBER_DESC; reintroduce;
     //@ Creates a new chooser and adds it to the form. See also TFRE_DB_INPUT_CHOOSER_DESC.
-    function  AddChooser           (const relSize:Integer=1): TFRE_DB_INPUT_CHOOSER_DESC; reintroduce;
+    function  AddChooser              (const relSize:Integer=1): TFRE_DB_INPUT_CHOOSER_DESC; reintroduce;
     //@ Creates a new date field and adds it to the form. See also TFRE_DB_INPUT_DATE_DESC.
-    function  AddDate              (const relSize:Integer=1): TFRE_DB_INPUT_DATE_DESC; reintroduce;
+    function  AddDate                 (const relSize:Integer=1): TFRE_DB_INPUT_DATE_DESC; reintroduce;
     //@ Creates a new file field and adds it to the form. See also TFRE_DB_INPUT_FILE_DESC.
-    function  AddFile              (const relSize:Integer=1): TFRE_DB_INPUT_FILE_DESC; reintroduce;
+    function  AddFile                 (const relSize:Integer=1): TFRE_DB_INPUT_FILE_DESC; reintroduce;
     //@ Creates a new input group and adds it to the form. See also TFRE_DB_INPUT_GROUP_DESC.
-    function  AddGroup             (const relSize:Integer=1): TFRE_DB_INPUT_GROUP_DESC; reintroduce;
+    function  AddGroup                (const relSize:Integer=1): TFRE_DB_INPUT_GROUP_DESC; reintroduce;
     //@ Creates a new input proxy group and adds it to the form. See also TFRE_DB_INPUT_GROUP_PROXY_DESC.
-    function  AddGroupProxy        (const relSize:Integer=1): TFRE_DB_INPUT_GROUP_PROXY_DESC; reintroduce;
+    function  AddGroupProxy           (const relSize:Integer=1): TFRE_DB_INPUT_GROUP_PROXY_DESC; reintroduce;
     //@ Creates a new input block and adds it to the form. See also TFRE_DB_INPUT_BLOCK_DESC.
-    function  AddBlock             (const relSize:Integer=1): TFRE_DB_INPUT_BLOCK_DESC; reintroduce;
+    function  AddBlock                (const relSize:Integer=1): TFRE_DB_INPUT_BLOCK_DESC; reintroduce;
     //@ Creates a new grid and adds it to the form. See also TFRE_DB_VIEW_LIST_DESC.
-    //function  AddList              (const relSize:Integer=1): TFRE_DB_VIEW_LIST_DESC; reintroduce;
+    //function  AddList                 (const relSize:Integer=1): TFRE_DB_VIEW_LIST_DESC; reintroduce;
   end;
 
   { TFRE_DB_INPUT_GROUP_PROXY_DESC }
@@ -1270,21 +1273,31 @@ implementation
 
   { TFRE_DB_INPUT_BLOCK_DESC }
 
-  function TFRE_DB_INPUT_BLOCK_DESC.Describe(const caption: String): TFRE_DB_INPUT_BLOCK_DESC;
+  function TFRE_DB_INPUT_BLOCK_DESC.Describe(const caption: String; const id:String): TFRE_DB_INPUT_BLOCK_DESC;
   begin
-    if not FieldExists('id') then begin
-      Field('id').AsString:='id'+UID_String;
+    if id='' then begin
+      if not FieldExists('id') then begin
+         Field('id').AsString:='id'+UID_String;
+      end;
+    end else begin
+      Field('id').AsString:=id;
     end;
     Field('caption').AsString:=caption;
     Field('sizeSum').AsInt16:=0;
     Result:=Self;
   end;
 
-  function TFRE_DB_INPUT_BLOCK_DESC.AddSchemeFormGroup(const schemeGroup: IFRE_DB_InputGroupSchemeDefinition; const session: IFRE_DB_UserSession; const collapsible: Boolean; const collapsed: Boolean; const relSize: Integer): TFRE_DB_INPUT_GROUP_DESC;
+  function TFRE_DB_INPUT_BLOCK_DESC.AddSchemeFormGroup(const schemeGroup: IFRE_DB_InputGroupSchemeDefinition; const session: IFRE_DB_UserSession; const collapsible: Boolean; const collapsed: Boolean; const relSize: Integer; const groupPreFix:String; const groupRequired:Boolean; const hideGroupHeader:Boolean): TFRE_DB_INPUT_GROUP_DESC;
   begin
-    Result:=inherited AddSchemeFormGroup(schemeGroup,session,collapsible,collapsed);
+    Result:=inherited AddSchemeFormGroup(schemeGroup,session,collapsible,collapsed,groupPreFix,groupRequired,hideGroupHeader);
     Result.Field('relSize').AsInt16:=relSize;
     Field('sizeSum').AsInt16:=Field('sizeSum').AsInt16+relSize;
+  end;
+
+  function TFRE_DB_INPUT_BLOCK_DESC.AddSchemeFormGroupInputs(const schemeGroup: IFRE_DB_InputGroupSchemeDefinition; const session: IFRE_DB_UserSession; const groupPreFix: String; const groupRequired: Boolean): TFRE_DB_INPUT_BLOCK_DESC;
+  begin
+    Result:=self;
+    _addFields(schemeGroup,session,schemeGroup.GroupFields,'',groupPreFix,groupRequired,nil,Result);
   end;
 
   function TFRE_DB_INPUT_BLOCK_DESC.AddInput(const relSize: Integer): TFRE_DB_INPUT_DESC;
@@ -1914,48 +1927,18 @@ implementation
     end;
   end;
 
-  procedure TFRE_DB_FORM_DESC.AddStore(const store: TFRE_DB_STORE_DESC);
+  procedure TFRE_DB_FORM_DESC._addFields(const schemeGroup: IFRE_DB_InputGroupSchemeDefinition; const session: IFRE_DB_UserSession; const fields: IFRE_DB_FieldDef4GroupArr; const prefix:String; const groupPreFix:String; const groupRequired: Boolean; const group: TFRE_DB_INPUT_GROUP_DESC; const block: TFRE_DB_INPUT_BLOCK_DESC);
   var
-    i: Integer;
-  begin
-    for i := 0 to Field('stores').ValueCount - 1 do begin
-      if Field('stores').AsObjectItem[i].Field('id').AsString=store.Field('id').AsString then exit;
-    end;
-    Field('stores').AddObject(store);
-  end;
-
-  procedure TFRE_DB_FORM_DESC.AddDBO(const id: String; const session: IFRE_DB_UserSession; const groupPreFix:String);
-  var
-    i  : Integer;
-    idx: String;
-  begin
-    idx:=id + '@' + groupPreFix;
-    for i := 0 to Field('dbos').ValueCount - 1 do begin
-      if Field('dbos').AsStringArr[i]=idx then exit;
-    end;
-    Field('dbos').AddString(idx);
-
-    for i := 0 to Field('_dbos').ValueCount - 1 do begin
-      if Field('_dbos').AsStringArr[i]=id then exit;
-    end;
-    Field('_dbos').AddString(id);
-    session.registerUpdatableDBO(FREDB_H2G(id));
-  end;
-
-  function TFRE_DB_FORM_DESC.GetStore(const id: String): TFRE_DB_STORE_DESC;
-  var
-    i: Integer;
-  begin
-    Result:=nil;
-    for i := 0 to Field('stores').ValueCount - 1 do begin
-      if Field('stores').AsObjectItem[i].Field('id').AsString=id then begin
-        Result:=Field('stores').AsObjectItem[i].Implementor_HC as TFRE_DB_STORE_DESC;
-        exit;
-      end;
-    end;
-  end;
-
-  function TFRE_DB_FORM_DESC.AddSchemeFormGroup(const schemeGroup: IFRE_DB_InputGroupSchemeDefinition; const session: IFRE_DB_UserSession; const collapsible: Boolean; const collapsed: Boolean; const groupPreFix: String; const groupRequired: Boolean; const hideGroupHeader: Boolean): TFRE_DB_INPUT_GROUP_DESC;
+    i          : integer;
+    scheme     : IFRE_DB_SchemeObject;
+    newPrefix  : String;
+    newGroup   : TFRE_DB_INPUT_GROUP_DESC;
+    newBlock   : TFRE_DB_INPUT_BLOCK_DESC;
+    inputGroup : IFRE_DB_InputGroupSchemeDefinition;
+    required   : Boolean;
+    path       : TFOSStringArray;
+    fieldDef   : IFRE_DB_FieldSchemeDefinition;
+    inputPrefix: String;
 
     function _getText(const key:TFRE_DB_String):TFRE_DB_String;
     begin
@@ -2244,18 +2227,6 @@ implementation
       obj.FieldSchemeDefinition.ForAllDepfields(@DepITerator);
     end;
 
-  procedure _addFields(const fields: IFRE_DB_FieldDef4GroupArr; const prefix:String; const groupPreFix:String; const groupRequired: Boolean; const group: TFRE_DB_INPUT_GROUP_DESC; const block: TFRE_DB_INPUT_BLOCK_DESC);
-  var
-    i          : integer;
-    scheme     : IFRE_DB_SchemeObject;
-    newPrefix  : String;
-    newGroup   : TFRE_DB_INPUT_GROUP_DESC;
-    newBlock   : TFRE_DB_INPUT_BLOCK_DESC;
-    inputGroup : IFRE_DB_InputGroupSchemeDefinition;
-    required   : Boolean;
-    path       : TFOSStringArray;
-    fieldDef   : IFRE_DB_FieldSchemeDefinition;
-    inputPrefix: String;
   begin
     GFRE_BT.SeperateString(prefix,'.',path);
     required:=groupRequired;
@@ -2291,11 +2262,11 @@ implementation
             newGroup:=block.AddGroup;
           end;
           newGroup.Describe(_getText(inputGroup.CaptionKey),fields[i].GetCollapsible,fields[i].GetCollapsed);
-          _addFields(inputGroup.GroupFields,newPrefix,groupPreFix,required,newGroup,nil);
+          _addFields(schemeGroup,session,inputGroup.GroupFields,newPrefix,groupPreFix,required,newGroup,nil);
         end else begin
           if fields[i].GetType=igd_UsedGroup then begin
             inputGroup:=scheme.GetInputGroup(fields[i].GetGroup);
-            _addFields(inputGroup.GroupFields,newPrefix,groupPreFix,required,group,block);
+            _addFields(schemeGroup,session,inputGroup.GroupFields,newPrefix,groupPreFix,required,group,block);
           end else begin
             inputGroup := scheme.GetInputGroup(fields[i].GetGroup);
             if Assigned(group) then begin
@@ -2304,7 +2275,7 @@ implementation
               newBlock:=block.AddBlock;
             end;
             newBlock.Describe(_getText(inputGroup.CaptionKey));
-            _addFields(inputGroup.GroupFields,newPrefix,groupPreFix,required,nil,newBlock);
+            _addFields(schemeGroup,session,inputGroup.GroupFields,newPrefix,groupPreFix,required,nil,newBlock);
           end;
         end;
       end else begin
@@ -2312,13 +2283,55 @@ implementation
       end;
   end;
 
+  procedure TFRE_DB_FORM_DESC.AddStore(const store: TFRE_DB_STORE_DESC);
+  var
+    i: Integer;
+  begin
+    for i := 0 to Field('stores').ValueCount - 1 do begin
+      if Field('stores').AsObjectItem[i].Field('id').AsString=store.Field('id').AsString then exit;
+    end;
+    Field('stores').AddObject(store);
+  end;
+
+  procedure TFRE_DB_FORM_DESC.AddDBO(const id: String; const session: IFRE_DB_UserSession; const groupPreFix:String);
+  var
+    i  : Integer;
+    idx: String;
+  begin
+    idx:=id + '@' + groupPreFix;
+    for i := 0 to Field('dbos').ValueCount - 1 do begin
+      if Field('dbos').AsStringArr[i]=idx then exit;
+    end;
+    Field('dbos').AddString(idx);
+
+    for i := 0 to Field('_dbos').ValueCount - 1 do begin
+      if Field('_dbos').AsStringArr[i]=id then exit;
+    end;
+    Field('_dbos').AddString(id);
+    session.registerUpdatableDBO(FREDB_H2G(id));
+  end;
+
+  function TFRE_DB_FORM_DESC.GetStore(const id: String): TFRE_DB_STORE_DESC;
+  var
+    i: Integer;
+  begin
+    Result:=nil;
+    for i := 0 to Field('stores').ValueCount - 1 do begin
+      if Field('stores').AsObjectItem[i].Field('id').AsString=id then begin
+        Result:=Field('stores').AsObjectItem[i].Implementor_HC as TFRE_DB_STORE_DESC;
+        exit;
+      end;
+    end;
+  end;
+
+  function TFRE_DB_FORM_DESC.AddSchemeFormGroup(const schemeGroup: IFRE_DB_InputGroupSchemeDefinition; const session: IFRE_DB_UserSession; const collapsible: Boolean; const collapsed: Boolean; const groupPreFix: String; const groupRequired: Boolean; const hideGroupHeader: Boolean): TFRE_DB_INPUT_GROUP_DESC;
   begin
     if hideGroupHeader then begin
       Result:=AddGroup.Describe('');
     end else begin
-      Result:=AddGroup.Describe(_getText(schemeGroup.CaptionKey),collapsible,collapsed);
+      Result:=AddGroup.Describe(session.GetDBConnection.FetchTranslateableTextShort(schemeGroup.CaptionKey),collapsible,collapsed);
     end;
-    _addFields(schemeGroup.GroupFields,'',groupPreFix,groupRequired,Result,nil);
+    _addFields(schemeGroup,session,schemeGroup.GroupFields,'',groupPreFix,groupRequired,Result,nil);
   end;
 
   procedure TFRE_DB_FORM_DESC.SetElementValue(const elementId, value: String);
