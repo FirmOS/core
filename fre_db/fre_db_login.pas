@@ -291,12 +291,17 @@ var dialog     : TFRE_DB_FORM_DIALOG_DESC;
     block      : TFRE_DB_INPUT_BLOCK_DESC;
     user       : IFRE_DB_Object;
     dlg        : TFRE_DB_LAYOUT_DESC;
+    group      : TFRE_DB_INPUT_GROUP_DESC;
 begin
   if ses.LoggedIn then begin
-    dialog:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'profile_diag_cap'),0,false,false);
+    dialog:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(app.FetchAppTextShort(ses,'profile_diag_cap'),0,false,false,false);
     GFRE_DBI.GetSystemSchemeByName('TFRE_DB_USER',scheme);
-    block:=dialog.AddBlock.Describe();
-    block.AddSchemeFormGroup(scheme.GetInputGroup('main_edit'),ses,false,false,2);
+    block := dialog.AddBlock.Describe();
+    group := block.AddSchemeFormGroup(scheme.GetInputGroup('main_edit'),ses,false,false,2);
+    group.AddInput.Describe('Old Password','pass.old',false,false,false,false,'',nil,nil,false,true);  //FIXXME : Languagekey -> also for dialog Sitemap Upper RIGHT (!!)
+    group.AddInput.Describe('Password','pass.new',false,true,false,False,'',nil,nil,false,true);
+    group.AddInput.Describe('Confirm Password','pass.confirm',false,true,false,False,'',nil,nil,false,true,'pass.new');
+
     block.AddSchemeFormGroup(scheme.GetInputGroup('picture'),ses,true,false);
     dialog.AddSchemeFormGroup(scheme.GetInputGroup('descr'),ses,true,false);
     CheckDbResult(conn.Fetch(conn.sys.GetCurrentUserTokenRef.GetUserUID,user)); //conn.SYS.GetCurrentUserTokenRef.User.Implementor_HC as IFRE_DB_Object).UID
@@ -311,16 +316,9 @@ begin
     else
       dialog:=TFRE_DB_FORM_DIALOG_DESC.create.Describe(cFRE_LOGIN_OVERRIDE,0,false,false,false,true,nil,0,true,'firmosLogin');
     dialog.AddDescription.Describe('','Please enter your Username and Password');
-    //dialog.AddButton.Describe(app.FetchAppTextShort(ses,'button_login'),CWSF(@WEB_doLogin),fdbbt_submit);
     dialog.AddButton.Describe('>',CWSF(@WEB_doLogin),fdbbt_submit);
-    //dialog.AddInput.Describe(app.FetchAppTextShort(ses,'login_uname'),'uname',true);
-    //dialog.AddInput.Describe(app.FetchAppTextShort(ses,'login_pass'),'pass',true,true,false,false,'',nil,false,true);
     dialog.AddInput.Describe('','uname',true);
     dialog.AddInput.Describe('','pass',true,true,false,false,'',nil,nil,false,true);
-    //dlg        := TFRE_DB_LAYOUT_DESC.create.Describe();
-    //dlg.AddFormDialog(dialog);
-    //result := dlg;
-    //exit;
   end;
   Result:=dialog;
 end;

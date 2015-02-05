@@ -146,6 +146,7 @@ type
   TFRE_DB_FORM_INPUT_DESC = class(TFRE_DB_CONTENT_DESC)
   private
     //@ Used internally through inheritance.
+    //@ groupRequired => inputs that are prefixed with '.' are grouped together and if gouprequired=true, this input is required if any input of the group receives input (e.g. pass.old pass.confirm pass.new)
     function  Describe (const caption,field_reference : String; const required: Boolean=false; const groupRequired: Boolean=false; const disabled: boolean = false;const hidden:Boolean=false; const defaultValue:String=''; const validator: IFRE_DB_ClientFieldValidator=nil ; const validatorConfigParams : IFRE_DB_Object=nil) : TFRE_DB_FORM_INPUT_DESC;virtual;
   public
     //@ Adds a dependent field.
@@ -183,6 +184,7 @@ type
   TFRE_DB_INPUT_DESC   = class(TFRE_DB_FORM_INPUT_DESC)
   public
     //@ Describes a text input field within a form.
+    //@ See also TFRE_DB_FORM_INPUT_DESC
     function  Describe (const caption,field_reference : String; const required: Boolean=false; const groupRequired: Boolean=false; const disabled: boolean = false;const hidden:Boolean=false; const defaultValue:String=''; const validator: IFRE_DB_ClientFieldValidator=nil;  const validatorConfigParams : IFRE_DB_Object=nil; const multiValues: Boolean=false; const isPass:Boolean=false; const confirms: String='') : TFRE_DB_INPUT_DESC; reintroduce;
   end;
 

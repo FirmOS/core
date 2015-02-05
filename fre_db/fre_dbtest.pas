@@ -186,6 +186,8 @@ type
   published
     function  WEB_Content                (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
     function  WEB_EditEntry              (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_AddEntry               (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
+    function  WEB_DeleteEntry            (const input:IFRE_DB_Object ; const ses: IFRE_DB_Usersession ; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION):IFRE_DB_Object;
   end;
 
   { TFRE_DB_TEST_APP_FEEDBROWSETREE_MOD }
@@ -1250,7 +1252,7 @@ begin
       AddDBTextToOne             ('dbText',tst_Key,'dbtK','DBText_k');
       AddCollectorscheme         ('Value=%s%%',TFRE_DB_NameTypeArray.create('fdbft_Byte'),'prg_txt','CollectorPrg',false);
       AddProgressTransform       ('fdbft_Byte','ptb','Progress','prg_txt','txt',100);
-      AddMatchingReferencedField ('LINK','data','data','Link to Obj1');
+      AddMatchingReferencedField ('LINK>','data','data','Link to Obj1');
       AddMatchingReferencedField (['LINK>','LINK2>'],'data','data2','Link to Obj2 via Obj1');
     end;
 
@@ -1259,7 +1261,7 @@ begin
     with DC_Grid do begin
       SetDeriveParent(session.GetDBConnection.GetCollection('COLL_TEST_AT'));
       SetDeriveTransformation(tr_Grid);
-      SetDisplayType(cdt_Listview,[cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable],'This grid test all fieldtypes, beside stream and object');
+      SetDisplayType(cdt_Listview,[cdgf_Multiselect,cdgf_ShowSearchbox,cdgf_ColumnDragable,cdgf_ColumnHideable,cdgf_ColumnResizeable],'This grid test all fieldtypes, beside stream and object');
     end;
 
     DC_Grid2 := session.NewDerivedCollection('DC_AT_EX');
@@ -1281,6 +1283,8 @@ begin
 
   lGrid  := ses.FetchDerivedCollection('DC_ALLTYPES').GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
   lGrid.AddButton.Describe(CWSF(@WEB_EditEntry),'','Edit','',fdgbd_single);
+  lGrid.AddButton.Describe(CWSF(@WEB_AddEntry),'','Add');
+  lGrid.AddButton.Describe(CWSF(@WEB_DeleteEntry),'','Delete','',fdgbd_multi);
   lGrid2 := ses.FetchDerivedCollection('DC_AT_EX').GetDisplayDescription as TFRE_DB_VIEW_LIST_DESC;
   layout.SetLayout(nil,lGrid,nil,nil,lGrid2,true,0,1,0,0,1);
   result := layout;
@@ -1294,6 +1298,30 @@ begin
   input.Field('asdialog').AsBoolean:=true;
   Result := test.Invoke('Content',input,ses,app,conn);
   test.Finalize;
+end;
+
+function TFRE_DB_TEST_APP_ALLGRID_MOD.WEB_AddEntry(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var
+  test : TFRE_DB_TEST_ALL_TYPES;
+  coll: IFRE_DB_COLLECTION;
+
+begin
+  test := TFRE_DB_TEST_ALL_TYPES.CreateForDB;
+  input.Field('asdialog').AsBoolean:=true;
+  input.Field('isnew').AsBoolean:=true;
+  Result := test.Invoke('Content',input,ses,app,conn);
+end;
+
+function TFRE_DB_TEST_APP_ALLGRID_MOD.WEB_DeleteEntry(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
+var  ga : TFRE_DB_GUIDArray;
+     i  : Integer;
+begin
+  ga := input.Field('selected').AsGUIDArr;
+  for i:=0 to high(ga) do
+    begin
+      conn.Delete(ga[i]);
+    end;
+  result := GFRE_DB_NIL_DESC;
 end;
 
 { TFRE_DB_TEST_APP_FORMTEST_MOD }
@@ -1890,8 +1918,16 @@ begin
 end;
 
 procedure TFRE_DB_TEST_ALL_TYPES.CALC_Uint32(const calc: IFRE_DB_CALCFIELD_SETTER);
+var fld : IFRE_DB_Field;
 begin
-  calc.SetAsUInt32((Field('fdbft_Byte').AsByte+1)*111);
+  if FieldOnlyExisting('fdbft_Byte',fld) then
+    begin
+      calc.SetAsUInt32((Field('fdbft_Byte').AsByte+1)*111);
+    end
+  else
+    begin
+      calc.SetAsUInt32(0);
+    end;
 end;
 
 procedure TFRE_DB_TEST_ALL_TYPES.CALC_String(const calc: IFRE_DB_CALCFIELD_SETTER);
@@ -1918,7 +1954,14 @@ begin
   end;
   res.AddSchemeFormGroup(scheme.GetInputGroup('main'),ses);
   res.FillWithObjectValues(Self,GetSession(input));
-  res.AddButton.Describe('Save',CWSF(@WEB_saveOperation),fdbbt_submit);
+  if input.FieldExists('isnew') and input.Field('isnew').AsBoolean then
+    begin
+      res.AddButton.Describe('New',CSCF(TFRE_DB_TEST_ALL_TYPES.ClassName,'NewOperation','collection','COLL_TEST_AT'),fdbbt_submit);
+    end
+  else
+    begin
+      res.AddButton.Describe('Save',CWSF(@WEB_saveOperation),fdbbt_submit);
+    end;
   Result:=res;
 end;
 
@@ -2323,7 +2366,7 @@ begin
     entry.Field('number').AsUInt32    := random(1000);
     entry.Field('number_pb').AsUInt32 := random(1000);
     res:=TFRE_DB_UPDATE_STORE_DESC.create.Describe('COLL_TEST_A_DERIVED');
-    res.addUpdatedEntry(entry,0,0); {in this special case, the icon is in a calculated field, the theming is in the transformation, the entry gets cloned, NO WAY TO FIX THE BAD ICON (!) }
+    res.addUpdatedEntry(entry,0,0,0); {in this special case, the icon is in a calculated field, the theming is in the transformation, the entry gets cloned, NO WAY TO FIX THE BAD ICON (!) }
     ses.SendServerClientRequest(res);
   end;
 end;
@@ -2460,7 +2503,7 @@ begin
   entry.Field('number').AsUInt32 := random(1000);
 
   res:=TFRE_DB_UPDATE_STORE_DESC.create.Describe(DC_Grid_Long.CollectionName);
-  res.addUpdatedEntry(entry,0,0);
+  res.addUpdatedEntry(entry,0,0,0);
   session.SendServerClientRequest(res);
 end;
 

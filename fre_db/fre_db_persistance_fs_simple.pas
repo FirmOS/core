@@ -1166,7 +1166,7 @@ var sys_admin   : boolean;
             try
               lUserGroup := obj as FRE_DB_CORE.TFRE_DB_GROUP;
               if not ((lUserGroup.isDisabled) and
-                 (lUserGroup.DomainID=users_domainid)) then
+                 (lUserGroup.DomainID=users_domainid)) then  { disabled is relevant only for users of the group domain (!) }
                    begin
                      if lUserGroup.isDelegation then
                        begin
@@ -1202,7 +1202,7 @@ var sys_admin   : boolean;
               try
                 lRole := obj as FRE_DB_CORE.TFRE_DB_ROLE;
                 if not ((lRole.isDisabled) and
-                        (lRole.DomainID=users_domainid)) then
+                        (lRole.DomainID=users_domainid)) then  { disabled is relevant only for users of the role domain (!) }
                   FREDB_ConcatStringArrays(lAllRights,lRole.GetRightNames);
               finally
                 obj.Set_Store_Locked(true);

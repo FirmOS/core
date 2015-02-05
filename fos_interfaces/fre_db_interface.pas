@@ -1764,7 +1764,6 @@ type
     function    RemoveRightsFromRole        (const rolename:TFRE_DB_String;const rights:TFRE_DB_StringArray; const domainUID: TFRE_DB_GUID):TFRE_DB_Errortype;
     function    ModifyUserGroupsById        (const user_id:TFRE_DB_GUID; const user_group_ids:TFRE_DB_GUIDArray; const keep_existing_groups:boolean=false):TFRE_DB_Errortype;
     function    RemoveUserGroupsById        (const user_id:TFRE_DB_GUID; const user_group_ids:TFRE_DB_GUIDArray):TFRE_DB_Errortype;
-    function    ModifyUserPassword          (const login:TFRE_DB_String; const domainUID: TFRE_DB_GUID;const oldpassword,newpassword:TFRE_DB_String):TFRE_DB_Errortype;
 
     function    RoleExists                  (const role:TFRE_DB_String;const domainUID: TFRE_DB_GUID):boolean;
     function    GroupExists                 (const group:TFRE_DB_String;const domainUID: TFRE_DB_GUID):boolean;
@@ -2177,8 +2176,8 @@ type
     procedure  AddStdClassRightFilter          (const key:          TFRE_DB_NameType ; domainidfield, objuidfield, schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType; stdrightset: TFRE_DB_STANDARD_RIGHT_SET; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean=true; const ignoreField:TFRE_DB_NameType=''; const ignoreValue:TFRE_DB_String=''); virtual;abstract;
     procedure  AddObjectRightFilter            (const key:          TFRE_DB_NameType ; rightset  : Array of TFRE_DB_String  ; const usertoken : IFRE_DB_USER_RIGHT_TOKEN      ; const negate:boolean=true; const ignoreField:TFRE_DB_NameType=''; const ignoreValue:TFRE_DB_String='');virtual;abstract;
     procedure  AddClassRightFilter             (const key:          TFRE_DB_NameType ; domainidfield, objuidfield, schemeclassfield: TFRE_DB_NameType; schemeclass: TFRE_DB_NameType; rightset: Array of TFRE_DB_String; const usertoken: IFRE_DB_USER_RIGHT_TOKEN; const negate: boolean=true; const ignoreField:TFRE_DB_NameType=''; const ignoreValue:TFRE_DB_String=''); virtual;abstract;
-    procedure  AddChildFilter                  (const key:          TFRE_DB_NameType); virtual ; abstract;
-    procedure  AddParentFilter                 (const key:          TFRE_DB_NameType ; const allowed_parent_path : TFRE_DB_GUIDArray); virtual ; abstract ;
+    procedure  AddChildFilter                  (const key:          TFRE_DB_NameType); virtual ; abstract;                                                  { Filters Childs out => Only Root nodes PP must be empty, internal (!) do not USE }
+    procedure  AddParentFilter                 (const key:          TFRE_DB_NameType ; const allowed_parent_path : TFRE_DB_String); virtual ; abstract ; { Child Query Filter, filter all Nodes which have not the corresponding PP, internal (!), do not USE }
     procedure  AddAutoDependencyFilter         (const key:          TFRE_DB_NameType ; const RL_Spec : Array of TFRE_DB_NameTypeRL ;  const StartDependecyValues : Array of TFRE_DB_GUID ; const negate:boolean=true  ; const include_null_values : boolean=false);virtual; abstract;
     procedure  AddRootNodeAutoDependencyFilter (const key:          TFRE_DB_NameType ; const RL_Spec : Array of TFRE_DB_NameTypeRL ;  const StartDependecyValues : Array of TFRE_DB_GUID ; const negate:boolean=true  ; const include_null_values : boolean=false);virtual; abstract;
     function   RemoveFilter                    (const key:          TFRE_DB_NameType):boolean;virtual;abstract;
@@ -2210,7 +2209,7 @@ end;
      FilterDefDynamicRef      : TFRE_DB_DC_FILTER_DEFINITION_BASE;
      FilterDefDependencyRef   : TFRE_DB_DC_FILTER_DEFINITION_BASE;
      OrderDefRef              : TFRE_DB_DC_ORDER_DEFINITION_BASE;
-     ParentIds                : TFRE_DB_GUIDArray;
+     ParentPath               : TFRE_DB_String;
      ParentChildSpec          : TFRE_DB_NameTypeRL;
      ParentChildScheme        : TFRE_DB_NameType;
      ParentChildField         : TFRE_DB_NameType;
@@ -2596,14 +2595,14 @@ end;
 
   { TFRE_DB_UPDATE_STORE_DESC }
 
-  TFRE_DB_UPDATE_STORE_DESC = class(TFRE_DB_CONTENT_DESC)
+  TFRE_DB_UPDATE_STORE_DESC = class(TFRE_DB_CONTENT_DESC) { the positions must be set correctly (!!!) }
   public
     //@ Describes an update of a store.
-    function  Describe        (const storeId:String):TFRE_DB_UPDATE_STORE_DESC;
+    function  Describe        (const storeId:String ; const storeid_dc:string=''):TFRE_DB_UPDATE_STORE_DESC;
     //@ Adds an updated entry and moves it to a new Position.
-    procedure addUpdatedEntry (const entry: IFRE_DB_Object ; const position: Int64 ; const absolutecount: Int64);
+    procedure addUpdatedEntry (const entry: IFRE_DB_Object ; const old_position,new_position: Int64 ; const absolutecount: Int64);
     //@ Adds the id of a deleted entry.
-    procedure addDeletedEntry (const entryId: String; const position: Int64 ; const absolutecount: Int64);
+    procedure addDeletedEntry (const entryId: String ; const position: Int64 ; const absolutecount: Int64);
     //@ Adds a new entry.
     //@ parentId is only useful for tree grids. If not parentId is given the new item is added as root item.
     //@ use nextItemId = '' to insert the new item at the end of the query.
@@ -2615,6 +2614,7 @@ end;
     procedure ForAllInserted  (const obcb : IFRE_DB_Obj_Iterator);
 
     function  GetStoreID      : TFRE_DB_NameType;
+    function  GetStoreID_DC   : TFRE_DB_NameType; { get only the derived collection part of the storeid }
     function  hasChanges      : Boolean;
   end;
 
@@ -3167,13 +3167,13 @@ end;
   private
      FStoreList : TFPHashObjectList;
      FSessid    : TFRE_DB_SESSION_ID;
-     function   GetUpdateStore            (const store_id: shortstring): TFRE_DB_UPDATE_STORE_DESC;
+     function   GetUpdateStore            (const store_id,store_id_dc: shortstring): TFRE_DB_UPDATE_STORE_DESC;
   public
      constructor Create                   (const session_id : TFRE_DB_NameType);
      destructor  Destroy                  ; override;
-     procedure   AddStoreUpdate           (const store_id: TFRE_DB_NameType; const upo: IFRE_DB_Object ; const position,abscount : NativeInt);
-     procedure   AddStoreInsert           (const store_id: TFRE_DB_NameType; const upo: IFRE_DB_Object ; const position,abscount : NativeInt);
-     procedure   AddStoreDelete           (const store_id: TFRE_DB_NameType; const id: TFRE_DB_String  ; const position,abscount : NativeInt);
+     procedure   AddStoreUpdate           (const store_id,store_id_dc: TFRE_DB_NameType; const upo: IFRE_DB_Object ; const oldpos,newpos,abscount : NativeInt);
+     procedure   AddStoreInsert           (const store_id,store_id_dc: TFRE_DB_NameType; const upo: IFRE_DB_Object ; const position,abscount : NativeInt);
+     procedure   AddStoreDelete           (const store_id,store_id_dc: TFRE_DB_NameType; const id: TFRE_DB_String  ; const position,abscount : NativeInt);
      procedure   DispatchAllNotifications (const session:TFRE_DB_UserSession);
      procedure   cs_SendUpdatesToSession  ;
   end;
@@ -3445,6 +3445,7 @@ end;
   function  FREDB_SB2G                           (const uid_sb : ShortString):TFRE_DB_GUID; { binary shortstring to uid}
   function  FREDB_ExtractUidsfromRightArray      (const str:TFRE_DB_StringArray;const rightname:TFRE_DB_STRING):TFRE_DB_GUIDArray;
   function  FREDB_H2GArray                       (const str:string):TFRE_DB_GUIDArray;
+  function  FREDB_H2GArray                       (const str:TFRE_DB_String):TFRE_DB_GUIDArray;
   function  FREDB_String2Bool                    (const str:string):boolean;
   function  FREDB_SplitRefLinkDescription        (key_description : TFRE_DB_NameTypeRL ; out rl_field,rl_scheme : TFRE_DB_NameTypeRL):boolean; { True if outbound RL}
   function  FREDB_SplitRefLinkDescriptionEx      (key_description : TFRE_DB_NameTypeRL ; out rl_field,rl_scheme : TFRE_DB_NameTypeRL ; out recursive : boolean):boolean; { True if outbound RL}
@@ -3498,6 +3499,7 @@ end;
   procedure FREDB_ConcatGUIDArrays                  (var TargetArr:TFRE_DB_GuidArray;const add_array:TFRE_DB_GuidArray);
   procedure FREDB_ConcatReferenceArrays             (var TargetArr:TFRE_DB_ObjectReferences ; const add_array : TFRE_DB_ObjectReferences);
   function  FREDB_GuidInArray                       (const check:TFRE_DB_GUID;const arr:TFRE_DB_GUIDArray):NativeInt;
+  function  FREDB_GuidInObjArray                    (const check:TFRE_DB_GUID;const arr:IFRE_DB_ObjectArray):NativeInt;
   function  FREDB_FindNthGuidIdx                    (n:integer;const guid:TFRE_DB_GUID;const arr:TFRE_DB_GUIDArray):integer;inline;
   function  FREDB_CheckAllStringFieldsEmptyInObject (const obj:IFRE_DB_Object):boolean;
   function  FREDB_RemoveIdxFomObjectArray           (const arr:IFRE_DB_ObjectArray ; const idx : NativeInt):IFRE_DB_ObjectArray;
@@ -3531,10 +3533,10 @@ end;
   function  FREDB_CompareTransCollDataKeys                    (const a,b : TFRE_DB_TRANS_COLL_DATA_KEY):boolean;
   function  FREDB_CompareTransCollDataKeysOrderOnly           (const a,b : TFRE_DB_TRANS_COLL_DATA_KEY):boolean;
 
-  function  FREDB_PP_ObjectInParentPath                       (const obj : IFRE_DB_Object ; const pp  : string): boolean;
-  function  FREDB_PP_ObjectInParentPathLastParent             (const obj : IFRE_DB_Object ; const pp  : string): boolean;
-  procedure FREDB_PP_AddParentPathToObj                       (const obj : IFRE_DB_Object ; const pp  : string);
+  function  FREDB_PP_ObjectInParentPath                       (const obj : IFRE_DB_Object ; const pp  : TFRE_DB_String): boolean;
+  procedure FREDB_PP_AddParentPathToObj                       (const obj : IFRE_DB_Object ; const pp  : TFRE_DB_String);
   function  FREDB_PP_GetParentPaths                           (const obj : IFRE_DB_Object):TFRE_DB_StringArray;
+  function  FREDB_PP_ExtendParentPath                         (const uid : TFRE_DB_GUID ; const pp :TFRE_DB_String):TFRE_DB_String;
 
   function  FREDB_CreateIndexDefFromObject                    (const ix_def_o : IFRE_DB_Object): TFRE_DB_INDEX_DEF;
   function  FREDB_CreateIndexDefArrayFromObject               (const ix_def_ao : IFRE_DB_Object): TFRE_DB_INDEX_DEF_ARRAY;
@@ -4095,6 +4097,16 @@ begin
 end;
 
 function FREDB_H2GArray(const str: string): TFRE_DB_GUIDArray;
+var sa : TFOSStringArray;
+     i : NativeInt;
+begin
+  GFRE_BT.SeperateString(str,',',sa);
+  SetLength(result,length(sa));
+  for i:= 0 to high(sa) do
+    result[i] := FREDB_H2G(sa[i]);
+end;
+
+function FREDB_H2GArray(const str: TFRE_DB_String): TFRE_DB_GUIDArray;
 var sa : TFOSStringArray;
      i : NativeInt;
 begin
@@ -4670,6 +4682,15 @@ begin
       exit(i);
 end;
 
+function FREDB_GuidInObjArray(const check: TFRE_DB_GUID; const arr: IFRE_DB_ObjectArray): NativeInt;
+var  i: NativeInt;
+begin
+  result := -1;
+  for i:=0 to High(arr) do
+    if check=arr[i].UID then
+      exit(i);
+end;
+
 function FREDB_FindNthGuidIdx(n: integer; const guid: TFRE_DB_GUID; const arr: TFRE_DB_GUIDArray): integer;
 var i: Integer;
 begin
@@ -4832,12 +4853,12 @@ const
 
 { TFRE_DB_SESSION_UPO }
 
-function TFRE_DB_SESSION_UPO.GetUpdateStore(const store_id: shortstring): TFRE_DB_UPDATE_STORE_DESC;
+function TFRE_DB_SESSION_UPO.GetUpdateStore(const store_id, store_id_dc: shortstring): TFRE_DB_UPDATE_STORE_DESC;
 begin
   result :=  FStoreList.Find(store_id) as TFRE_DB_UPDATE_STORE_DESC;
   if not Assigned(result) then
     begin
-      result := TFRE_DB_UPDATE_STORE_DESC.create.Describe(store_id);
+      result := TFRE_DB_UPDATE_STORE_DESC.create.Describe(store_id,store_id_dc);
       FStoreList.Add(store_id,result);
     end;
 end;
@@ -4854,24 +4875,24 @@ begin
   inherited Destroy;
 end;
 
-procedure TFRE_DB_SESSION_UPO.AddStoreUpdate(const store_id: TFRE_DB_NameType; const upo: IFRE_DB_Object; const position, abscount: NativeInt);
+procedure TFRE_DB_SESSION_UPO.AddStoreUpdate(const store_id, store_id_dc: TFRE_DB_NameType; const upo: IFRE_DB_Object; const oldpos, newpos, abscount: NativeInt);
 var update_st : TFRE_DB_UPDATE_STORE_DESC;
 begin
-  update_st := GetUpdateStore(store_id);
-  update_st.addUpdatedEntry(upo,position,abscount);
+  update_st := GetUpdateStore(store_id,store_id_dc);
+  update_st.addUpdatedEntry(upo,oldpos,newpos,abscount);
 end;
 
-procedure TFRE_DB_SESSION_UPO.AddStoreInsert(const store_id: TFRE_DB_NameType; const upo: IFRE_DB_Object; const position, abscount: NativeInt);
+procedure TFRE_DB_SESSION_UPO.AddStoreInsert(const store_id, store_id_dc: TFRE_DB_NameType; const upo: IFRE_DB_Object; const position, abscount: NativeInt);
 var update_st : TFRE_DB_UPDATE_STORE_DESC;
 begin
-  update_st := GetUpdateStore(store_id);
+  update_st := GetUpdateStore(store_id,store_id_dc);
   update_st.addNewEntry(upo,position,abscount);
 end;
 
-procedure TFRE_DB_SESSION_UPO.AddStoreDelete(const store_id: TFRE_DB_NameType; const id: TFRE_DB_String; const position, abscount: NativeInt);
+procedure TFRE_DB_SESSION_UPO.AddStoreDelete(const store_id, store_id_dc: TFRE_DB_NameType; const id: TFRE_DB_String; const position, abscount: NativeInt);
 var update_st : TFRE_DB_UPDATE_STORE_DESC;
 begin
-  update_st := GetUpdateStore(store_id);
+  update_st := GetUpdateStore(store_id,store_id_dc);
   update_st.addDeletedEntry(id,position,abscount);
 end;
 
@@ -4891,11 +4912,11 @@ begin
   for i := 0 to FStoreList.Count-1 do
     begin
       ct   := FStoreList.Items[i] as TFRE_DB_UPDATE_STORE_DESC;
-      stid := ct.GetStoreID;
+      stid := ct.GetStoreID_DC;
       session.FetchDerivedCollection(stid).GetDeriveTransformation.GetFinalRightTransformFunction(frt,lang);
       ct.ForAllUpdated(@FinalTransform);
       ct.ForAllInserted(@FinalTransform);
-      writeln('HH>>> FINAL,FINAL UPDATE DESC ',ct.DumpToString);
+      //writeln('HH>>> FINAL,FINAL UPDATE DESC ',ct.DumpToString);
       session.SendServerClientRequest(ct);
     end;
 end;
@@ -4918,19 +4939,21 @@ end;
 
 { TFRE_DB_UPDATE_STORE_DESC }
 
-function TFRE_DB_UPDATE_STORE_DESC.Describe(const storeId: String): TFRE_DB_UPDATE_STORE_DESC;
+function TFRE_DB_UPDATE_STORE_DESC.Describe(const storeId: String; const storeid_dc: string): TFRE_DB_UPDATE_STORE_DESC;
 begin
   Field('storeId').AsString:=storeId;
+  Field('storeIdDC').AsString:=storeid_dc;
   Result:=Self;
 end;
 
-procedure TFRE_DB_UPDATE_STORE_DESC.addUpdatedEntry(const entry: IFRE_DB_Object; const position: Int64; const absolutecount: Int64);
+procedure TFRE_DB_UPDATE_STORE_DESC.addUpdatedEntry(const entry: IFRE_DB_Object; const old_position, new_position: Int64; const absolutecount: Int64);
 var
   obj: IFRE_DB_Object;
 begin
   obj:=GFRE_DBI.NewObject;
-  obj.Field('item').AddObject(entry.CloneToNewObject());
-  obj.Field('pos').AsInt64    := position;
+  obj.Field('item').AsObject := entry.CloneToNewObject();
+  obj.Field('pos').AsInt64    := old_position;
+  obj.Field('newpos').AsInt64 := new_position;
   obj.Field('total').AsInt32:=absolutecount;
   Field('updated').AddObject(obj);
 end;
@@ -4951,7 +4974,6 @@ var
   obj: IFRE_DB_Object;
 begin
   obj:=GFRE_DBI.NewObject;
-  //obj.Field('revid').AsString:=nextItemId;
   obj.Field('item').AsObject:=entry.CloneToNewObject();
   obj.Field('pos').AsInt64:=position;
   obj.Field('total').AsInt32:=absolutecount;
@@ -4965,33 +4987,52 @@ end;
 
 procedure TFRE_DB_UPDATE_STORE_DESC.ForAllUpdated(const obcb: IFRE_DB_Obj_Iterator);
 var fld :IFRE_DB_Field;
-
-  procedure Internal(const obj:IFRE_DB_Object);
-  begin
-    obcb(obj.Field('item').AsObject);
-  end;
-
+    arr : IFRE_DB_ObjectArray;
+    i: Integer;
 begin
  if FieldOnlyExisting('updated',fld) then
-   fld.AsObject.ForAllObjects(@Internal);
+   begin
+     arr := fld.AsObjectArr;
+     for i:=0 to high(arr) do
+       begin
+         obcb(arr[i].Field('item').AsObject);
+       end;
+   end;
 end;
 
 procedure TFRE_DB_UPDATE_STORE_DESC.ForAllInserted(const obcb: IFRE_DB_Obj_Iterator);
 var fld :IFRE_DB_Field;
+    arr : IFRE_DB_ObjectArray;
+    i   : Integer;
 
-  procedure Internal(const obj:IFRE_DB_Object);
-  begin
-    obcb(obj.Field('item').AsObject);
-  end;
+  //procedure Internal(const obj:IFRE_DB_Object);
+  //begin
+  //  obcb(obj.Field('item').AsObject);
+  //end;
 
 begin
+  //if FieldOnlyExisting('new',fld) then
+  //  fld.AsObject.ForAllObjects(@internal);
+
   if FieldOnlyExisting('new',fld) then
-    fld.AsObject.ForAllObjects(@internal);
+    begin
+      arr := fld.AsObjectArr;
+      for i:=0 to high(arr) do
+        begin
+          obcb(arr[i].Field('item').AsObject);
+        end;
+    end;
+
 end;
 
 function TFRE_DB_UPDATE_STORE_DESC.GetStoreID: TFRE_DB_NameType;
 begin
   result := Field('storeid').AsString;
+end;
+
+function TFRE_DB_UPDATE_STORE_DESC.GetStoreID_DC: TFRE_DB_NameType;
+begin
+  result := Field('storeIdDC').AsString;
 end;
 
 function TFRE_DB_UPDATE_STORE_DESC.hasChanges: Boolean;
@@ -8030,7 +8071,6 @@ end;
 
 procedure TFRE_DB_UserSession.COR_SendStoreUpdates(const data: TFRE_DB_SESSION_UPO);
 begin
-  writeln('COR_SUPO');
   data.DispatchAllNotifications(self);
 end;
 
@@ -8053,7 +8093,7 @@ begin
         on e:exception do
           begin
             GFRE_DBI.LogError(dblc_DB,'Custom transform failed %s',[e.Message]);
-            writeln('CTF FAILED...............');
+            writeln('CUSTOM FINAL TRANSFORM FAILED............... ',e.Message);
             writeln(transformed_filtered_cloned_obj.DumpToString);
             writeln('...............');
           end;
@@ -11461,7 +11501,7 @@ begin
             (a.RL_Spec   = b.RL_Spec  );
 end;
 
-function FREDB_PP_ObjectInParentPath(const obj: IFRE_DB_Object; const pp: string): boolean;
+function FREDB_PP_ObjectInParentPath(const obj: IFRE_DB_Object; const pp: TFRE_DB_String): boolean;
 var ppa : TFRE_DB_StringArray;
     fld : IFRE_DB_Field;
 begin
@@ -11498,7 +11538,7 @@ begin
     end;
 end;
 
-procedure FREDB_PP_AddParentPathToObj(const obj: IFRE_DB_Object; const pp: string);
+procedure FREDB_PP_AddParentPathToObj(const obj: IFRE_DB_Object; const pp: TFRE_DB_String);
 var ppa   : TFRE_DB_StringArray;
     //fld   : IFRE_DB_Field;
     //ppart : string;
@@ -11529,6 +11569,15 @@ begin
   else
     result := nil;
 end;
+
+function FREDB_PP_ExtendParentPath(const uid: TFRE_DB_GUID; const pp: TFRE_DB_String): TFRE_DB_String;
+begin
+  if pp='' then
+    result := uid.AsHexString
+  else
+    result := uid.AsHexString+'@'+pp; { extend reverse (!) to match client spec }
+end;
+
 
 function FREDB_TransformException2ec(const e: exception; const lineinfo: shortstring): TFRE_DB_Errortype;
 begin

@@ -1286,6 +1286,7 @@ type
     class function  GetDomainLoginKey          (const loginpart : TFRE_DB_String; const domain_id : TFRE_DB_GUID) : TFRE_DB_String;
     function        DomainLoginKey             :TFRE_DB_String;
     class procedure InstallDBObjects           (const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
+    class procedure InstallDBObjects4Domain    (const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TFRE_DB_GUID); override;
     property  isInternal                       :Boolean read GetIsInternal write SetIsInternal;
     property  Userclass                        :TFRE_DB_String read GetUserclass write SetUserclass;  { Every User has one defined class WEBUSER, FEEDER, (MIGHTYFEEDER), right checks can be OVERLAYED by the CLASS and the special class ALL }
   published
@@ -2226,7 +2227,6 @@ type
     function    RemoveGroupsFromGroupById   (const group:TFRE_DB_String;const domainUID: TFRE_DB_GUID;const group_ids: TFRE_DB_GUIDArray; const ignore_not_set:boolean): TFRE_DB_Errortype;
     function    ModifyUserGroupsById        (const user_id:TFRE_DB_GUID; const user_group_ids:TFRE_DB_GUIDArray;const keep_existing_groups:boolean=false):TFRE_DB_Errortype;
     function    RemoveUserGroupsById        (const user_id:TFRE_DB_GUID; const user_group_ids:TFRE_DB_GUIDArray):TFRE_DB_Errortype;
-    function    ModifyUserPassword          (const login:TFRE_DB_String; const domainUID: TFRE_DB_GUID;const oldpassword,newpassword:TFRE_DB_String):TFRE_DB_Errortype;
     function    RoleExists                  (const role:TFRE_DB_String;const domainUID: TFRE_DB_GUID):boolean;
     function    GroupExists                 (const group:TFRE_DB_String;const domainUID: TFRE_DB_GUID):boolean;
     function    DeleteGroup                 (const group:TFRE_DB_String;const domainUID: TFRE_DB_GUID):TFRE_DB_Errortype;
@@ -6528,21 +6528,6 @@ begin
   end;
 end;
 
-function TFRE_DB_SYSTEM_CONNECTION.ModifyUserPassword(const login:TFRE_DB_String; const domainUID: TFRE_DB_GUID;const oldpassword, newpassword: TFRE_DB_String): TFRE_DB_Errortype;
-var l_User:TFRE_DB_USER;
-begin
-  try
-    result := FetchUser(login,domainUID,l_User);
-    if result<>edb_OK then exit;
-    if not l_User.Checkpassword(oldpassword) then
-      exit(edb_ACCESS);
-    l_User.SetPassword(newpassword);
-    Update(GetUserUIDP,l_User);
-  except on e:exception do
-      result := FREDB_TransformException2ec(e,{$I %FILE%}+'@'+{$I %LINE%});
-  end;
-end;
-
 function TFRE_DB_SYSTEM_CONNECTION.RoleExists(const role:TFRE_DB_String;const domainUID: TFRE_DB_GUID): boolean;
 begin
   result := FSysRoles.ExistsIndexed(TFRE_DB_ROLE.GetDomainRoleKey(role,domainUID));
@@ -7952,7 +7937,7 @@ var
                    SetParentPath(parentpath);
                    transdata.SetTransformedObject(tr_obj);
                    if not stop then
-                     TransFormChildsForUid(tr_obj,parentpath+','+FREDB_G2H(refd_uids[j]),depth+1,refd_uids[j]); { recurse }
+                     TransFormChildsForUid(tr_obj,parentpath+'/'+FREDB_G2H(refd_uids[j]),depth+1,refd_uids[j]); { recurse }
                  end;
              finally
                refd_objs[j].Finalize;
@@ -8284,7 +8269,7 @@ var i, j, cnt : NativeInt;
                 refl_vals    : TFRE_DB_GUIDArray;
                 expanded_uid : TFRE_DB_GUIDArray;
             begin
-              if length(qrydef.ParentIds)>0 then { hack skip uid filter processing on child query}
+              if qrydef.ParentPath<>'' then { hack skip uid filter processing on child query}  {CHECK ROOT NODE FILTER ? }
                 exit;
               if FREDB_StringInArray(uppercase(ffn),qrydef.DependencyRefIds) then
                 begin { dependency ref UID Filter}
@@ -8385,7 +8370,7 @@ var i, j, cnt : NativeInt;
             fld : IFRE_DB_Field;
         begin
           qrydef.FilterDefDependencyRef.RemoveAllFilters;
-          if length(qrydef.ParentIds)>0 then { hack skip uid filter processing on child query}
+          if  qrydef.ParentPath<>'' then { hack skip uid filter processing on child query}
             exit;
           SetLength(qrydef.DepFilterUids,Length(qrydef.DependencyRefIds));
           for i:=0 to high(qrydef.DependencyRefIds) do
@@ -8406,12 +8391,26 @@ var i, j, cnt : NativeInt;
         dop.ForAllObjectsFieldName(@AddFilter);
     end;
 
+    function WEB2ParentPath:TFRE_DB_String; { the parent path is stored in reverse, => from child up to parent }
+    var sa : TFRE_DB_StringArray;
+         i : NativeInt;
+    begin
+      result := '';
+      sa := web_input.Field('parentid').AsStringArr;
+      result := sa[0];
+      for i:=1 to high(sa) do
+        result := result+'@'+sa[i];
+    end;
+
 begin
+  writeln('QRY ----------');
+  writeln(web_input.DumpToString());
+  writeln('QRY ----------');
   qrydef := SetupQryDefinitionBasic(web_input.Field('start').AsInt32,web_input.Field('end').AsInt32);
   qrydef.FullTextFilter := web_input.Field('FULLTEXT').AsString;
   if web_input.FieldExists('parentid') then
     begin { this is a child query }
-      qrydef.ParentIds := FREDB_H2GArray(web_input.Field('parentid').AsString);
+      qrydef.ParentPath := WEB2ParentPath;
     end;
   Processfilters;
   result := qrydef;
@@ -18422,7 +18421,10 @@ begin
   end;
   case FFieldData.FieldType of
     fdbft_GUID   : result := FFieldData.guid^;
-    //fdbft_String : result := FFieldData.guid^;
+    fdbft_String :
+      begin
+        result := FREDB_StringArray2UidArray(FFieldData.strg^);
+      end;
     fdbft_ObjLink: result := FFieldData.obl^;
       else
         raise EFRE_DB_Exception.Create(edb_MISMATCH,' got '+CFRE_DB_FIELDTYPE[FFieldData.FieldType]+' expected GUID or ObjectLinkArray');
@@ -20673,7 +20675,7 @@ begin
   input_group.AddInput('login','$TFRE_DB_USER_scheme_login',true);
   input_group.AddInput('firstname','$TFRE_DB_USER_scheme_firstname');
   input_group.AddInput('lastname','$TFRE_DB_USER_scheme_lastname');
-  input_group.AddInput('passwordMD5','$TFRE_DB_USER_scheme_passwordMD5');
+  //input_group.AddInput('passwordMD5','$TFRE_DB_USER_scheme_passwordMD5');
 
   input_group:=scheme.AddInputGroup('descr').Setup('$TFRE_DB_USER_scheme_descr_group');
   input_group.UseInputGroup('TFRE_DB_TEXT','main','desc');
@@ -20693,22 +20695,38 @@ end;
 
 class procedure TFRE_DB_USER.InstallDBObjects(const conn: IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType);
 begin
- newVersionId:='1.0';
- if currentVersionId='' then begin
-   currentVersionId := '1.0';
+  newVersionId:='1.1';
+  if currentVersionId='' then begin
+    currentVersionId := '1.0';
+    conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_USER_scheme_user_group','User'));
+    conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_USER_scheme_descr_group','User'));
+    conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_USER_scheme_picture_group','Description'));
+    conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_USER_scheme_login','Login name'));
+    conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_USER_scheme_firstname','Firstname'));
+    conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_USER_scheme_lastname','Lastname'));
+    conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_USER_scheme_passwordMD5','Password'));
+    conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_USER_scheme_picture',''));
+    conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_USER_scheme_domain_group','Domain'));
+    conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_USER_scheme_domainidlink','Domain'));
+  end;
+  if currentVersionId='1.0' then begin
+    currentVersionId := '1.1';
+  end;
+end;
 
-   conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_USER_scheme_user_group','User'));
-   conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_USER_scheme_descr_group','User'));
-   conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_USER_scheme_picture_group','Description'));
-   conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_USER_scheme_login','Login name'));
-   conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_USER_scheme_firstname','Firstname'));
-   conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_USER_scheme_lastname','Lastname'));
-   conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_USER_scheme_passwordMD5','Password'));
-   conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_USER_scheme_picture',''));
-   conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_USER_scheme_domain_group','Domain'));
-   conn.StoreTranslateableText(GFRE_DBI.CreateText('$TFRE_DB_USER_scheme_domainidlink','Domain'));
- end;
-
+class procedure TFRE_DB_USER.InstallDBObjects4Domain(const conn: IFRE_DB_SYS_CONNECTION; currentVersionId: TFRE_DB_NameType; domainUID: TFRE_DB_GUID);
+var
+  role: IFRE_DB_ROLE;
+begin
+  if currentVersionId='' then begin
+    currentVersionId := '1.0';
+  end;
+  if currentVersionId='1.0' then begin
+    currentVersionId := '1.1';
+    role := CreateClassRole('resetpass','Can reset user password','Allowed to reset user password, without old password');
+    role.AddRight(GetRight4Domain(GetClassRightName('resetpass'),domainUID));
+    CheckDbResult(conn.StoreRole(role,domainUID),'Error creating '+ClassName+'.resetpass role');
+  end;
 end;
 
 class function TFRE_DB_USER.WBC_NewUserOperation(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
@@ -20733,8 +20751,14 @@ begin
  loginf  := data.Field('login').AsString;
  pw      := data.Field('PASSWORDMD5').AsString;
  pwc     := data.Field('PASSWORDMD5_CONFIRM').AsString;
- fn      := data.Field('firstname').AsString;
- ln      := data.field('lastname').AsString;
+ if not data.Field('firstname').IsSpecialClearMarked then
+   fn :=  data.Field('firstname').AsString
+ else
+   fn := '';
+ if not data.field('lastname').IsSpecialClearMarked then
+   ln := data.field('lastname').AsString
+ else
+   ln := '';
 
  //dbc.sys.FetchDomainById(GFRE_BT.HexString_2_GUID(data.field('domainidlink').AsString),obj);
 
@@ -20782,87 +20806,86 @@ end;
 
 function TFRE_DB_USER.WEB_SaveOperation(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 var res              : TFRE_DB_Errortype;
-    //dbo              : IFRE_DB_Object;
     data             : IFRE_DB_Object;
-    loginf,pw,pwc,
-    fn,ln            : String;
     dn               : TFRE_DB_NameType;
     obj              : IFRE_DB_DOMAIN;
     modify           : boolean;
     txt              : TFRE_DB_String;
     fld              : IFRE_DB_FIELD;
+    opw,npw,cpw      : TFRE_DB_String;
+    checkold         : boolean;
 
     l_User  : IFRE_DB_USER;
     l_UserO : TFRE_DB_User;
 
 begin
   data    := input.Field('DATA').asobject;
-  loginf  := data.Field('login').AsString;
-  pw      := data.Field('PASSWORDMD5').AsString;
-  pwc     := data.Field('PASSWORDMD5_CONFIRM').AsString;
-  fn      := data.Field('firstname').AsString;
-  ln      := data.field('lastname').AsString;
 
-  modify := data.FieldExists('firstname') or
-            data.FieldExists('lastname') or
-            data.FieldExists('PASSWORDMD5') or
-            data.FieldExists('desc') or
-            data.FieldExists('picture');
-
-  if modify then
+  res := conn.sys.FetchUser(GetLogin,DomainID,l_User);
+  l_UserO := l_User.Implementor as TFRE_DB_USER;
+  if res<>edb_OK then
+    exit(TFRE_DB_MESSAGE_DESC.create.Describe('TRANSLATE: Error','TRANSLATE: Fetch Failed',fdbmt_error,nil));
+  if data.FieldOnlyExisting('firstname',fld) then
     begin
-      res := conn.sys.FetchUser(login,DomainID,l_User);
-      l_UserO := l_User.Implementor as TFRE_DB_USER;
-      if res<>edb_OK then
-        exit(TFRE_DB_MESSAGE_DESC.create.Describe('TRANSLATE: Error','TRANSLATE: Fetch Failed',fdbmt_error,nil));
-      if data.FieldOnlyExisting('firstname',fld) then
-        begin
-          if fld.IsSpecialClearMarked then
-            l_UserO.Firstname:=''
-          else
-            l_UserO.Firstname:=fld.AsString;
-        end;
-      if data.FieldOnlyExisting('lastname',fld) then
-        begin
-          if fld.IsSpecialClearMarked then
-            l_UserO.Lastname :=''
-          else
-            l_UserO.Lastname := fld.AsString;
-        end;
-     if data.FieldOnlyExisting('picture',fld) then
-       begin
-         if fld.FieldType=fdbft_Stream then
-           begin
-              l_UserO.SetImage(fld.AsStream,data.Field('picture'+cFRE_DB_STKEY).AsString,data.Field('picture'+cFRE_DB_ST_ETAG).AsString);
-              fld.Clear(true);
-           end
-         else
-           begin
-             //raise EFRE_DB_Exception.Create(edb_ERROR,'the picture field must be a stream field, not [%s] val=[%s]',[fld.FieldTypeAsString,fld.AsString]);
-           end;
-       end;
-      if data.FieldOnlyExisting('desc',fld) then
-        begin
-          data := data.Field('desc').AsObject;
-          if data.FieldOnlyExisting('txt',fld) then
-            begin
-              if fld.IsSpecialClearMarked then
-                l_UserO.Field('desc').AsDBText.ClearLong
-              else
-                l_UserO.Field('desc').AsDBText.Setlong(fld.AsString);
-            end;
-          if data.FieldOnlyExisting('txt_s',fld) then
-            if fld.IsSpecialClearMarked then
-              l_UserO.Field('desc').AsDBText.ClearShort
-            else
-              l_UserO.Field('desc').AsDBText.SetShort(fld.AsString);
-        end;
-      if data.FieldOnlyExisting('PASSWORDMD5',fld) then {FIXXME !!!! Password policies, check .... validator ...}
-        l_UserO.SetPassword(fld.AsString);
-      //CheckDbResult((conn.sys.Implementor as TFRE_DB_SYSTEM_CONNECTION).Update(l_UserO),'TRANSLATE: UPDATE FAILED');
-      conn.sys.UpdateUser(l_User);
+      if fld.IsSpecialClearMarked then
+        l_UserO.Firstname:=''
+      else
+        l_UserO.Firstname:=fld.AsString;
     end;
-   exit(TFRE_DB_CLOSE_DIALOG_DESC.create.Describe());
+  if data.FieldOnlyExisting('lastname',fld) then
+    begin
+      if fld.IsSpecialClearMarked then
+        l_UserO.Lastname :=''
+      else
+        l_UserO.Lastname := fld.AsString;
+    end;
+ if data.FieldOnlyExisting('picture',fld) then
+   begin
+     if fld.FieldType=fdbft_Stream then
+       begin
+          l_UserO.SetImage(fld.AsStream,data.Field('picture'+cFRE_DB_STKEY).AsString,data.Field('picture'+cFRE_DB_ST_ETAG).AsString);
+          fld.Clear(true);
+       end
+     else
+       begin
+         //raise EFRE_DB_Exception.Create(edb_ERROR,'the picture field must be a stream field, not [%s] val=[%s]',[fld.FieldTypeAsString,fld.AsString]);
+       end;
+   end;
+
+ if data.FieldOnlyExisting('pass',fld) then
+   begin
+     opw := fld.AsObject.Field('old').AsString;
+     npw := fld.AsObject.Field('new').AsString;
+     cpw := fld.AsObject.Field('confirm').AsString;
+     if npw<>cpw then
+       exit(TFRE_DB_MESSAGE_DESC.create.Describe('TRANSLATE: Error','password confirm wrong',fdbmt_error,nil));
+     checkold := true;
+
+     if conn.SYS.GetCurrentUserTokenRef.CheckClassRight4DomainId('resetpass',TFRE_DB_USER,DomainID) and ((l_UserO.Login<>'admin') or ((l_UserO.DomainID<>conn.SYS.GetCurrentUserTokenRef.GetSysDomainID))) then
+       checkold := false;
+     if checkold  and (not l_UserO.Checkpassword(opw)) then
+       exit(TFRE_DB_MESSAGE_DESC.create.Describe('TRANSLATE: Error','old password wrong',fdbmt_error,nil));
+     l_User.SetPassword(npw);
+   end;
+
+  if data.FieldOnlyExisting('desc',fld) then
+    begin
+      data := data.Field('desc').AsObject;
+      if data.FieldOnlyExisting('txt',fld) then
+        begin
+          if fld.IsSpecialClearMarked then
+            l_UserO.Field('desc').AsDBText.ClearLong
+          else
+            l_UserO.Field('desc').AsDBText.Setlong(fld.AsString);
+        end;
+      if data.FieldOnlyExisting('txt_s',fld) then
+        if fld.IsSpecialClearMarked then
+          l_UserO.Field('desc').AsDBText.ClearShort
+        else
+          l_UserO.Field('desc').AsDBText.SetShort(fld.AsString);
+    end;
+  CheckDbResult(conn.sys.UpdateUser(l_User),'TRANSLATE !! ');// FIXXME CHRIS
+  exit(TFRE_DB_CLOSE_DIALOG_DESC.create.Describe());
 end;
 
 

@@ -3320,6 +3320,8 @@ var
   user          : IFRE_DB_USER;
   sel_guid      : TFRE_DB_GUID;
   userEditable  : Boolean;
+  group         : TFRE_DB_INPUT_GROUP_DESC;
+  pgroup        : TFRE_DB_INPUT_GROUP_DESC;
 
 begin
   if not conn.sys.CheckClassRight4AnyDomain(sr_FETCH,TFRE_DB_USER) then
@@ -3330,10 +3332,14 @@ begin
     CheckDbResult(conn.sys.FetchUserById(sel_guid,user),'UserContent');
     userEditable:=conn.sys.CheckClassRight4DomainId(sr_UPDATE,TFRE_DB_USER,user.GetDomainIDLink);
     GFRE_DBI.GetSystemSchemeByName('TFRE_DB_USER',scheme);
-    panel :=TFRE_DB_FORM_PANEL_DESC.Create.Describe(FetchModuleTextShort(ses,'user_content_header'),true,userEditable);
+    panel :=TFRE_DB_FORM_PANEL_DESC.Create.Describe(FetchModuleTextShort(ses,'user_content_header'),false,userEditable);
     block:=panel.AddBlock.Describe();
-    block.AddSchemeFormGroup(scheme.GetInputGroup('main_edit'),ses,false,false,2);
+    group  := block.AddSchemeFormGroup(scheme.GetInputGroup('main_edit'),ses,false,false,2);
+    group.AddInput.Describe('Old Password','pass.old',false,false,false,false,'',nil,nil,false,true);  //FIXXME : Languagekey -> also for dialog Sitemap Upper RIGHT (!!)
+    group.AddInput.Describe('Password','pass.new',false,true,false,False,'',nil,nil,false,true);
+    group.AddInput.Describe('Confirm Password','pass.confirm',false,true,false,False,'',nil,nil,false,true,'pass.new');
     block.AddSchemeFormGroup(scheme.GetInputGroup('picture'),ses,false,false);
+
     panel.AddSchemeFormGroup(scheme.GetInputGroup('descr'),ses,true,false);
     panel.FillWithObjectValues(user.Implementor_HC as IFRE_DB_Object,ses);
     if userEditable then begin
@@ -3894,6 +3900,8 @@ begin
     group.isProtected:=true;
     if notdefault then group.isDisabled:=true;
     CheckDbResult(conn.UpdateGroup(group));
+
+    CheckDbResult(conn.AddRoleRightsToRole('ACADMINUSER',domainUID,TFRE_DB_USER.GetClassRoleName('resetpass')));
   end;
 end;
 
