@@ -1865,6 +1865,7 @@ implementation
           end;
           if Assigned(objField) then
             begin
+              if objField.AsString = cFRE_DB_SYS_CLEAR_VAL_STR then continue; //skip clear value
               objFieldN := objField.FieldName;
               if (Field('elements').AsObjectItem[i].Implementor_HC  is TFRE_DB_INPUT_CHOOSER_DESC) and Field('elements').AsObjectItem[i].Field('cce').AsBoolean and (objField.FieldType=fdbft_Object) then
                 begin
