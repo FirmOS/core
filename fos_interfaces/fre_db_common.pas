@@ -160,7 +160,7 @@ type
   public
     //@ Describes a data entry of a simple store which has a caption and a value data element.
     //@ Used for e.g. a chooser in a form.
-    function Describe (const caption,value: string):TFRE_DB_STORE_ENTRY_DESC;
+    function Describe (const caption,value: string):TFRE_DB_STORE_ENTRY_DESC; reintroduce;
   end;
 
   { TFRE_DB_STORE_DESC }
@@ -172,7 +172,7 @@ type
     //@ Describes a store whith the given data model.
     //@ The server function is used to retrieve the data.
     //@ The id will be needed if a grid selection should filter the store.
-    function  Describe            (const idField:String='uid'; const serverFunc:TFRE_DB_SERVER_FUNC_DESC=nil; const sortAndFilterFunc: TFRE_DB_SERVER_FUNC_DESC=nil; const destroyFunc:TFRE_DB_SERVER_FUNC_DESC=nil; const clearQueryIdFunc: TFRE_DB_SERVER_FUNC_DESC=nil; const id:String=''; const pageSize:Integer=25): TFRE_DB_STORE_DESC; overload;
+    function  Describe            (const idField:String='uid'; const serverFunc:TFRE_DB_SERVER_FUNC_DESC=nil; const sortAndFilterFunc: TFRE_DB_SERVER_FUNC_DESC=nil; const destroyFunc:TFRE_DB_SERVER_FUNC_DESC=nil; const clearQueryIdFunc: TFRE_DB_SERVER_FUNC_DESC=nil; const id:String=''; const pageSize:Integer=25): TFRE_DB_STORE_DESC; reintroduce;
 
     //@ Creates a new entry and adds it to the store. E.g. used for choosers.
     function  AddEntry            : TFRE_DB_STORE_ENTRY_DESC;
@@ -183,7 +183,7 @@ type
   TFRE_DB_INPUT_DESC   = class(TFRE_DB_FORM_INPUT_DESC)
   public
     //@ Describes a text input field within a form.
-    function  Describe (const caption,field_reference : String; const required: Boolean=false; const groupRequired: Boolean=false; const disabled: boolean = false;const hidden:Boolean=false; const defaultValue:String=''; const validator: IFRE_DB_ClientFieldValidator=nil;  const validatorConfigParams : IFRE_DB_Object=nil; const multiValues: Boolean=false; const isPass:Boolean=false; const confirms: String='') : TFRE_DB_INPUT_DESC;
+    function  Describe (const caption,field_reference : String; const required: Boolean=false; const groupRequired: Boolean=false; const disabled: boolean = false;const hidden:Boolean=false; const defaultValue:String=''; const validator: IFRE_DB_ClientFieldValidator=nil;  const validatorConfigParams : IFRE_DB_Object=nil; const multiValues: Boolean=false; const isPass:Boolean=false; const confirms: String='') : TFRE_DB_INPUT_DESC; reintroduce;
   end;
 
   { TFRE_DB_INPUT_DESCRIPTION_DESC }
@@ -191,7 +191,7 @@ type
   TFRE_DB_INPUT_DESCRIPTION_DESC   = class(TFRE_DB_FORM_INPUT_DESC)
   public
     //@ Describes an info field within a form.
-    function  Describe (const caption,description_: String) : TFRE_DB_INPUT_DESCRIPTION_DESC;
+    function  Describe (const caption,description_: String) : TFRE_DB_INPUT_DESCRIPTION_DESC; reintroduce;
   end;
 
   { TFRE_DB_INPUT_BUTTON_DESC }
@@ -200,7 +200,7 @@ type
   public
     //@ Describes an input field as button
     //@ cleanupFunc is called if the button was used by the user and than is hidden by another input field e.g. chooser
-    function  Describe (const caption,buttonCaption: String; const serverFunc:TFRE_DB_SERVER_FUNC_DESC; const cleanupFunc: TFRE_DB_SERVER_FUNC_DESC=nil) : TFRE_DB_INPUT_BUTTON_DESC;
+    function  Describe (const caption,buttonCaption: String; const serverFunc:TFRE_DB_SERVER_FUNC_DESC; const cleanupFunc: TFRE_DB_SERVER_FUNC_DESC=nil) : TFRE_DB_INPUT_BUTTON_DESC; reintroduce;
   end;
 
   { TFRE_DB_INPUT_BOOL_DESC }
@@ -208,7 +208,7 @@ type
   TFRE_DB_INPUT_BOOL_DESC   = class(TFRE_DB_FORM_INPUT_DESC)
   public
     //@ Describes a boolean input field within a form.
-    function  Describe(const caption, field_reference:string; const required: boolean=false; const groupRequired: Boolean=false; const disabled: boolean=false; const defaultValue:Boolean=false):TFRE_DB_INPUT_BOOL_DESC;
+    function  Describe(const caption, field_reference:string; const required: boolean=false; const groupRequired: Boolean=false; const disabled: boolean=false; const defaultValue:Boolean=false):TFRE_DB_INPUT_BOOL_DESC;reintroduce;
   end;
 
   { TFRE_DB_INPUT_NUMBER_DESC }
@@ -217,7 +217,7 @@ type
     //@ Describes a number input within a form.
     //@ minMax Array has to be of length 2 (min and max definition)
     function  Describe (const caption,field_reference : String; const required: Boolean=false; const groupRequired: Boolean=false;  const disabled: boolean = false;const hidden:Boolean=false; const defaultValue:String='';
-                        const digits: Integer=-1; const minMax: TFRE_DB_Real64Array=nil) : TFRE_DB_INPUT_NUMBER_DESC;
+                        const digits: Integer=-1; const minMax: TFRE_DB_Real64Array=nil) : TFRE_DB_INPUT_NUMBER_DESC;reintroduce;
     //@ Describes a number slider within a form.
     function  DescribeSlider (const caption,field_reference : String; const min,max: Real; const showValueField: Boolean=true; const defaultValue:String=''; const digits: Integer=0; const steps: Integer=-1) : TFRE_DB_INPUT_NUMBER_DESC;
     //@ sets the min and max of the input element
@@ -230,7 +230,7 @@ type
   public
     //@ Describes a chooser within a form.
     function  Describe              (const caption, field_reference: string; const store: TFRE_DB_STORE_DESC; const display_hint:TFRE_DB_CHOOSER_DH=dh_chooser_combo;
-                                     const required: boolean=false; const groupRequired: Boolean=false; const add_empty_for_required:Boolean=false; const disabled: boolean=false; const defaultValue:String=''): TFRE_DB_INPUT_CHOOSER_DESC;
+                                     const required: boolean=false; const groupRequired: Boolean=false; const add_empty_for_required:Boolean=false; const disabled: boolean=false; const defaultValue:String=''): TFRE_DB_INPUT_CHOOSER_DESC;reintroduce;
     function  DescribeMultiValue    (const caption, field_reference: string; const store: TFRE_DB_STORE_DESC; const display_hint:TFRE_DB_CHOOSER_DH=dh_chooser_radio;
                                      const required: boolean=false; const groupRequired: Boolean=false; const add_empty_for_required:Boolean=false; const disabled: boolean=false; const defaultValue:TFRE_DB_StringArray=nil): TFRE_DB_INPUT_CHOOSER_DESC;
     //@ FIXXME: only implemented for dh_chooser_combo.
@@ -251,7 +251,7 @@ type
   public
     //@ Describes a date input within a form.
     function  Describe (const caption,field_reference : String; const required: Boolean=false; const groupRequired: Boolean=false; const disabled: boolean = false;const hidden:Boolean=false;
-                        const defaultValue:String=''; const validator: IFRE_DB_ClientFieldValidator=nil; const validatorConfigParams : IFRE_DB_Object=nil) : TFRE_DB_INPUT_DATE_DESC;
+                        const defaultValue:String=''; const validator: IFRE_DB_ClientFieldValidator=nil; const validatorConfigParams : IFRE_DB_Object=nil) : TFRE_DB_INPUT_DATE_DESC;reintroduce;
   end;
 
   { TFRE_DB_INPUT_RECURRENCE_DESC }
@@ -259,7 +259,7 @@ type
   TFRE_DB_INPUT_RECURRENCE_DESC   = class(TFRE_DB_FORM_INPUT_DESC)
   public
     //@ Describes a recurrence input within a form.
-    function  Describe (const caption,field_reference : String; const intervals: TFRE_DB_REC_INTERVAL_TYPES=[rit_once,rit_minute,rit_hour,rit_day,rit_week,rit_quarter,rit_month,rit_year]; const required: Boolean=false; const groupRequired: Boolean=false; const disabled: boolean = false;const hidden:Boolean=false; const defaultValue:String='') : TFRE_DB_INPUT_RECURRENCE_DESC;
+    function  Describe (const caption,field_reference : String; const intervals: TFRE_DB_REC_INTERVAL_TYPES=[rit_once,rit_minute,rit_hour,rit_day,rit_week,rit_quarter,rit_month,rit_year]; const required: Boolean=false; const groupRequired: Boolean=false; const disabled: boolean = false;const hidden:Boolean=false; const defaultValue:String='') : TFRE_DB_INPUT_RECURRENCE_DESC;reintroduce;
   end;
 
   { TFRE_DB_INPUT_FILE_DESC }
@@ -274,7 +274,7 @@ type
     //@                                absolute: (boolean: def: false) if false image aspect ration will be preserved, width and height params will be maximum settings
     //@                                                                else image will be sized exactly to width and height settings
     function  Describe (const caption,field_reference : String; const required: Boolean=false; const groupRequired: Boolean=false; const disabled: boolean = false;const hidden:Boolean=false;
-                        const defaultValue:String=''; const validator: IFRE_DB_ClientFieldValidator=nil; const validatorConfigParams : IFRE_DB_Object=nil; const multiValues: Boolean=false) : TFRE_DB_INPUT_FILE_DESC;
+                        const defaultValue:String=''; const validator: IFRE_DB_ClientFieldValidator=nil; const validatorConfigParams : IFRE_DB_Object=nil; const multiValues: Boolean=false) : TFRE_DB_INPUT_FILE_DESC;reintroduce;
   end;
 
   { TFRE_DB_VIEW_LIST_BUTTON_DESC }
@@ -1197,6 +1197,7 @@ implementation
     if not FieldExists('id') then begin
       Field('id').AsString:='id'+UID_String;
     end;
+    Result:=Self;
   end;
 
   function TFRE_DB_VIEW_LIST_BUTTON_DESC.Describe(const func: TFRE_DB_SERVER_FUNC_DESC; const icon: String; const caption: String; const tooltip: String; const buttonDep: TFRE_DB_GRID_BUTTON_DEP): TFRE_DB_VIEW_LIST_BUTTON_DESC;
@@ -1428,7 +1429,7 @@ implementation
       if obj.Implementor_HC<>Self then begin
         TFRE_DB_FORM_DESC(obj.Implementor_HC).GetStore(id);
       end else begin
-        inherited GetStore(id);
+        Result:=inherited GetStore(id);
       end;
     end else begin
       raise Exception.Create('Failed to get the store: Root Form not found!');
@@ -1585,7 +1586,11 @@ implementation
       if inputGroup.Field('elements').AsObjectItem[i].Implementor_HC is TFRE_DB_INPUT_GROUP_DESC then begin
         addDependentInputGroup(inputGroup.Field('elements').AsObjectItem[i].Implementor_HC as TFRE_DB_INPUT_GROUP_DESC,chooserValue,visible);
       end else begin
-        addDependentInput(inputGroup.Field('elements').AsObjectItem[i].Field('field').AsString,chooserValue,visible);
+        if inputGroup.Field('elements').AsObjectItem[i].Implementor_HC is TFRE_DB_INPUT_BLOCK_DESC then begin
+          addDependentInput(inputGroup.Field('elements').AsObjectItem[i].Field('id').AsString,chooserValue,visible);
+        end else begin
+          addDependentInput(inputGroup.Field('elements').AsObjectItem[i].Field('field').AsString,chooserValue,visible);
+        end;
       end;
     end;
   end;
@@ -1700,7 +1705,6 @@ implementation
   procedure TFRE_DB_VIEW_LIST_DESC.AddFilterEvent(const filteredStoreId, refId: String);
   var
     obj  : IFRE_DB_Object;
-    fsid : String;
   begin
     obj  := GFRE_DBI.NewObject;
     obj.Field('storeId').AsString := filteredStoreId;
@@ -2485,8 +2489,6 @@ implementation
   { TFRE_DB_INPUT_GROUP_DESC }
 
   function TFRE_DB_INPUT_GROUP_DESC._Describe(const caption: String; const collapsible, collapsed: Boolean): TFRE_DB_INPUT_GROUP_DESC;
-  var
-    i: Integer;
   begin
     Field('caption').AsString:=caption;
     Field('collapsible').AsBoolean:=collapsible;
@@ -2545,7 +2547,7 @@ implementation
       if obj.Implementor_HC<>Self then begin
         (obj.Implementor_HC as TFRE_DB_FORM_DESC).GetStore(id);
       end else begin
-        inherited GetStore(id);
+        Result:=inherited GetStore(id);
       end;
     end else begin
       raise Exception.Create('Failed to get the store: Root Form not found!');
@@ -2605,6 +2607,7 @@ implementation
    if openIconId<>'' then begin
      Field('openIconId').AsString:=openIconId;
    end;
+   Result:=Self;
   end;
 
   function TFRE_DB_DATA_ELEMENT_DESC.Describe(const id, caption: TFRE_DB_String; const displayType: TFRE_DB_DISPLAY_TYPE; const sortable: Boolean; const filterable: Boolean; const size: Integer; const display: Boolean; const editable: Boolean; const required: Boolean; const iconId: String; const openIconId: String; const filterValues: TFRE_DB_StringArray): TFRE_DB_DATA_ELEMENT_DESC;
