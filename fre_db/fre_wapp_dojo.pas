@@ -330,12 +330,16 @@ implementation
     propsPrefix: String;
     bt         : TFRE_DB_BUTTON_TYPE;
   begin
-    jsContentAdd('"  <button dojoType=''FIRMOS.FormButton'' "+');
+    jsContentAdd('"  <button dojoType=''FIRMOS.FormButton'' id='''+co.Field('id').AsString+''' "+');
     jsContentAdd('"  data-dojo-props=\""+');
     if co.FieldExists('serverFunc') then begin
       jsContentAdd('"    actionClassname:'''+co.FieldPath('serverFunc.class').AsString+''', actionFunctionname:'''+co.FieldPath('serverFunc.func').AsString+''', "+');
       jsContentAdd('"    actionUidPath:'+_BuildJSArray(co.Field('serverFunc').AsObject.Field('uidPath').AsStringArr)+' ,actionParams:'+_BuildParamsObject(co.Field('serverFunc').AsObject.Field('params').AsObjectArr)+',"+');
       jsContentAdd('"    hiddenFields:'+_BuildParamsObject(hiddenFields,'field','defaultValue')+', isDialog:'+BoolToStr(isDialog,'true','false')+'"+');
+      if co.FieldExists('cleanupFunc') then begin
+        jsContentAdd('"   ,cleanupClassname:'''+co.FieldPath('cleanupFunc.class').AsString+''', cleanupFunctionname:'''+co.FieldPath('cleanupFunc.func').AsString+''', "+');
+        jsContentAdd('"    cleanupUidPath:'+_BuildJSArray(co.Field('cleanupFunc').AsObject.Field('uidPath').AsStringArr)+' ,cleanupParams:'+_BuildParamsObject(co.Field('cleanupFunc').AsObject.Field('params').AsObjectArr)+'"+');
+      end;
       propsPrefix:=', ';
     end else begin
       propsPrefix:='';

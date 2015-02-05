@@ -199,7 +199,8 @@ type
   TFRE_DB_INPUT_BUTTON_DESC   = class(TFRE_DB_FORM_INPUT_DESC)
   public
     //@ Describes an input field as button
-    function  Describe (const caption,buttonCaption: String; const serverFunc:TFRE_DB_SERVER_FUNC_DESC) : TFRE_DB_INPUT_BUTTON_DESC;
+    //@ cleanupFunc is called if the button was used by the user and than is hidden by another input field e.g. chooser
+    function  Describe (const caption,buttonCaption: String; const serverFunc:TFRE_DB_SERVER_FUNC_DESC; const cleanupFunc: TFRE_DB_SERVER_FUNC_DESC=nil) : TFRE_DB_INPUT_BUTTON_DESC;
   end;
 
   { TFRE_DB_INPUT_BOOL_DESC }
@@ -800,11 +801,14 @@ implementation
 
   { TFRE_DB_INPUT_BUTTON_DESC }
 
-  function TFRE_DB_INPUT_BUTTON_DESC.Describe(const caption,buttonCaption: String; const serverFunc: TFRE_DB_SERVER_FUNC_DESC): TFRE_DB_INPUT_BUTTON_DESC;
+  function TFRE_DB_INPUT_BUTTON_DESC.Describe(const caption, buttonCaption: String; const serverFunc: TFRE_DB_SERVER_FUNC_DESC; const cleanupFunc: TFRE_DB_SERVER_FUNC_DESC): TFRE_DB_INPUT_BUTTON_DESC;
   begin
     inherited Describe(caption, '');
     Field('buttonCaption').AsString:=buttonCaption;
     Field('serverFunc').AsObject:=serverFunc;
+    if Assigned(cleanupFunc) then begin
+      Field('cleanupFunc').AsObject:=cleanupFunc;
+    end;
     Field('buttonType').AsString:=CFRE_DB_BUTTON_TYPE[fdbbt_button];
     Result:=Self;
   end;
