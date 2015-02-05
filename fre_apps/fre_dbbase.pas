@@ -80,9 +80,9 @@ type
   { TFRE_DB_STATUS_PLUGIN }
 
   TFRE_DB_STATUS_PLUGIN=class(TFRE_DB_OBJECT_PLUGIN_BASE)
+  public
     class procedure RegisterSystemScheme                (const scheme : IFRE_DB_SCHEMEOBJECT); override;
     class procedure InstallDBObjects                    (const conn:IFRE_DB_SYS_CONNECTION; var currentVersionId: TFRE_DB_NameType; var newVersionId: TFRE_DB_NameType); override;
-  public
     procedure       locked                             ;
     procedure       unlock                             ;
     function        isLocked                           : Boolean;

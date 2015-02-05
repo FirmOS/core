@@ -328,7 +328,6 @@ implementation
   procedure TFRE_DB_WAPP_DOJO._BuildButton(const co: IFRE_DB_Object; const hiddenFields: IFRE_DB_ObjectArray; const isDialog: Boolean; var hasCloseButton: Boolean; const captionField: String);
   var
     propsPrefix: String;
-    bt         : TFRE_DB_BUTTON_TYPE;
   begin
     jsContentAdd('"  <button dojoType=''FIRMOS.FormButton'' id='''+co.Field('id').AsString+''' "+');
     jsContentAdd('"  data-dojo-props=\""+');
@@ -344,15 +343,15 @@ implementation
     end else begin
       propsPrefix:='';
     end;
-    bt:=String2DBButtonType(co.Field('buttonType').AsString);
-    case bt of
-      fdbbt_button  : jsContentAdd('"    \" type=''button'' "+');
-      fdbbt_submit  : jsContentAdd('"    \" type=''submit'' "+');
-      fdbbt_close   : begin
+    case co.Field('buttonType').AsString of
+      'bt_form'    : jsContentAdd('"    \" type=''form'' "+');
+      'bt_button'  : jsContentAdd('"    \" type=''button'' "+');
+      'bt_submit'  : jsContentAdd('"    \" type=''submit'' "+');
+      'bt_close'   : begin
                         jsContentAdd('"    '+propsPrefix+' closeDialog: true \" type=''button'' "+');
                         hasCloseButton:=true;
                       end;
-      fdbbt_download: begin
+      'bt_download': begin
                         jsContentAdd('"    '+propsPrefix+' downloadId: '''+co.Field('downloadId').AsString+''', closeDialog: '+BoolToStr(co.Field('closeDialog').AsBoolean,'true','false')+' \" type=''button'' "+');
                         hasCloseButton:=true;
                       end;
