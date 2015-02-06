@@ -651,8 +651,8 @@ implementation
                              jsContentAdd('", depGroup: \"["+');
                              preFix:='';
                              for i := 0 to co.Field('dependentInputFields').ValueCount - 1 do begin
-                               jsContentAdd('" '+preFix+'{inputId: \\\"'+co.Field('dependentInputFields').AsObjectArr[i].Field('inputId').AsString +'\\\",value: \\\"'+co.Field('dependentInputFields').AsObjectArr[i].Field('value').AsString +'\\\"' +
-                                                        ',visible: \\\"'+co.Field('dependentInputFields').AsObjectArr[i].Field('visible').AsString +'\\\",caption: \\\"'+co.Field('dependentInputFields').AsObjectArr[i].Field('caption').AsString +'\\\""+');
+                               jsContentAdd('" '+preFix+'{inputId: \\\"'+co.Field('dependentInputFields').AsObjectArr[i].Field('inputId').AsString +'\\\",value: \\\"'+FREDB_String2EscapedJSString(co.Field('dependentInputFields').AsObjectArr[i].Field('value').AsString) +'\\\"' +
+                                                        ',visible: \\\"'+co.Field('dependentInputFields').AsObjectArr[i].Field('visible').AsString +'\\\",caption: \\\"'+FREDB_String2EscapedJSString(co.Field('dependentInputFields').AsObjectArr[i].Field('caption').AsString) +'\\\""+');
                                if co.Field('dependentInputFields').AsObjectArr[i].FieldExists('vtype') then begin
                                  jsContentAdd('",placeHolder: \\\"'+conn.FetchTranslateableTextShort(co.Field('dependentInputFields').AsObjectArr[i].FieldPath('vtype.helpTextKey').AsString)+'\\\""+');
                                  if (co.Field('dependentInputFields').AsObjectArr[i].FieldPath('vtype.allowedChars').AsString<>'') then begin
@@ -759,12 +759,12 @@ implementation
             classl:='firmosFormGroupHideLeft';
             classr:='firmosFormGroupHideRight';
           end;
-          jsContentAdd('"<div id='''+elem.UID_String+'_tl'' class='''+classl+'''></div><div id='''+elem.UID_String+'_tr'' class='''+classr+'''></div><div class=''firmosFormGroupHeaderElementCollapsible''>'+elem.Field('caption').AsString+'</div>"+');
+          jsContentAdd('"<div id='''+elem.UID_String+'_tl'' class='''+classl+'''></div><div id='''+elem.UID_String+'_tr'' class='''+classr+'''></div><div class=''firmosFormGroupHeaderElementCollapsible''>'+_EscapeValueString(elem.Field('caption').AsString)+'</div>"+');
           jsContentAdd('"</td></tr>"+');
         end else begin
           if elem.Field('caption').AsString<>'' then begin
             jsContentAdd('"<tr class=''firmosFormGroupHeader'' id='''+elem.Field('id').AsString+'_tr''><td colspan=2>"+');
-            jsContentAdd('"<div class=''firmosFormGroupHeaderElement''>'+elem.Field('caption').AsString+'</div>"+');
+            jsContentAdd('"<div class=''firmosFormGroupHeaderElement''>'+_EscapeValueString(elem.Field('caption').AsString)+'</div>"+');
             jsContentAdd('"</td></tr>"+');
           end;
         end;
@@ -1224,7 +1224,7 @@ implementation
     end;
 
     if co.Field('caption').AsString<>'' then begin
-      jsContentAdd(childId + '.title = "'+co.Field('caption').AsString+'";');
+      jsContentAdd(childId + '.title = "'+FREDB_String2EscapedJSString(co.Field('caption').AsString)+'";');
       jsContentAdd(childId + '.spanLabel = true;');
       jsContentAdd('var '+co.Field('id').AsString + ' = new dijit.layout.AccordionContainer({');
       jsContentAdd('  id: "' + co.Field('id').AsString + '"');
@@ -1454,7 +1454,7 @@ implementation
         cssString:=cssString+'G_UI_COM.createCSSRule("grid-' + co.Field('id').AsString + '-' + elem.Field('id').AsString + '-css","width: '+FloatToStrF(Trunc(elem.Field('size').AsInt16 / sizeSum * 10000) / 100,ffFixed,3,2)+'%;");';
         if FREDB_String2DBDisplayType(elem.Field('displayType').AsString)=dt_number_pb then begin
           jsContentAdd('     '+elem.Field('id').AsString+': FIRMOS.gridPBColumn({');
-          jsContentAdd('       label: "' + elem.Field('caption').AsString + '"');
+          jsContentAdd('       label: "' + FREDB_String2EscapedJSString(elem.Field('caption').AsString) + '"');
           jsContentAdd('      ,sortable: '+BoolToStr(elem.Field('sortable').AsBoolean,'true','false'));
           jsContentAdd('      ,filterable: '+BoolToStr(elem.Field('filterable').AsBoolean,'true','false'));
           jsContentAdd('      ,dataType: "' + elem.Field('displayType').AsString + '"');
@@ -1466,7 +1466,7 @@ implementation
           jsContentAdd('                                                       })');
         end else begin
           jsContentAdd('     '+elem.Field('id').AsString+': {');
-          jsContentAdd('       label: "' + elem.Field('caption').AsString + '"');
+          jsContentAdd('       label: "' + FREDB_String2EscapedJSString(elem.Field('caption').AsString) + '"');
           if expandoCol then begin
             jsContentAdd('      ,renderExpando: true');
             jsContentAdd('      ,unhidable: true');
@@ -1704,7 +1704,7 @@ implementation
           jsContentAdd('  ,iconClass: rName');
         end;
         if button.Field('caption').AsString<>'' then begin
-          jsContentAdd('  ,label: "'+button.Field('caption').AsString+'"');
+          jsContentAdd('  ,label: "'+FREDB_String2EscapedJSString(button.Field('caption').AsString)+'"');
         end else begin
           jsContentAdd('  ,showLabel: false');
         end;
@@ -1951,7 +1951,7 @@ implementation
     jsContentAdd('<html lang="en">');
     jsContentAdd('<head>');
     jsContentAdd('<meta http-equiv="Content-Type" content="text/html;charset=utf-8">');
-    jsContentAdd('<title>'+co.Field('caption').AsString+'</title>');
+    jsContentAdd('<title>'+_EscapeValueString(co.Field('caption').AsString)+'</title>');
     jsContentAdd('<script type="text/javascript">');
     jsContentAdd('  G_TEXTS = {};');
     jsContentAdd('  G_TEXTS.gridfilter =');
