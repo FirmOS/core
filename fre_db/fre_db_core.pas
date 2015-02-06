@@ -20718,6 +20718,7 @@ class procedure TFRE_DB_USER.InstallDBObjects4Domain(const conn: IFRE_DB_SYS_CON
 var
   role: IFRE_DB_ROLE;
 begin
+  inherited InstallDBObjects4Domain(conn, currentVersionId, domainUID);
   if currentVersionId='' then begin
     currentVersionId := '1.0';
   end;
