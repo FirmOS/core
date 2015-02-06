@@ -568,9 +568,9 @@ type
      property    TransKey                     : TFRE_DB_TransStepId read FKey;
      constructor Create                       (const key: TFRE_DB_TransStepId);
      procedure   AddDirectSessionUpdateEntry  (const update_dbo : IFRE_DB_Object); { add a dbo update for sessions dbo's (forms) }
-     procedure   AddGridInplaceUpdate         (const sessionid: TFRE_DB_NameType; const store_id,store_id_dc: TFRE_DB_NameType; const upo   : IFRE_DB_Object ; const oldpos,newpos,abscount : NativeInt); { inplace update entry for the store }
-     procedure   AddGridInsertUpdate          (const sessionid: TFRE_DB_NameType; const store_id,store_id_dc: TFRE_DB_NameType; const upo   : IFRE_DB_Object ; const position,abscount : NativeInt);
-     procedure   AddGridRemoveUpdate          (const sessionid: TFRE_DB_NameType; const store_id,store_id_dc: TFRE_DB_NameType; const del_id: TFRE_DB_String ; const position,abscount : NativeInt);
+     procedure   AddGridInplaceUpdate         (const sessionid: TFRE_DB_NameType; const store_id,store_id_dc: TFRE_DB_String; const upo   : IFRE_DB_Object ; const oldpos,newpos,abscount : NativeInt); { inplace update entry for the store }
+     procedure   AddGridInsertUpdate          (const sessionid: TFRE_DB_NameType; const store_id,store_id_dc: TFRE_DB_String; const upo   : IFRE_DB_Object ; const position,abscount : NativeInt);
+     procedure   AddGridRemoveUpdate          (const sessionid: TFRE_DB_NameType; const store_id,store_id_dc: TFRE_DB_String; const del_id: TFRE_DB_String ; const position,abscount : NativeInt);
      procedure   NotifyAll;
   end;
 
@@ -849,9 +849,9 @@ type
 
     { --- Notify gathering }
     procedure   CN_AddDirectSessionUpdateEntry       (const update_dbo : IFRE_DB_Object); { add a dbo update for sessions dbo's (forms) }
-    procedure   CN_AddGridInplaceUpdate              (const sessionid : TFRE_DB_NameType ; const store_id,store_id_dc : TFRE_DB_NameType ; const upo   : IFRE_DB_Object ; const oldpos,newpos,abscount : NativeInt);
-    procedure   CN_AddGridInplaceDelete              (const sessionid : TFRE_DB_NameType ; const store_id,store_id_dc : TFRE_DB_NameType ; const del_id: TFRE_DB_String ; const position,abscount : NativeInt);
-    procedure   CN_AddGridInsertUpdate               (const sessionid : TFRE_DB_NameType ; const store_id,store_id_dc : TFRE_DB_NameType ; const upo   : IFRE_DB_Object ; const position,abscount : NativeInt);
+    procedure   CN_AddGridInplaceUpdate              (const sessionid : TFRE_DB_NameType ; const store_id,store_id_dc : TFRE_DB_String ; const upo   : IFRE_DB_Object ; const oldpos,newpos,abscount : NativeInt);
+    procedure   CN_AddGridInplaceDelete              (const sessionid : TFRE_DB_NameType ; const store_id,store_id_dc : TFRE_DB_String ; const del_id: TFRE_DB_String ; const position,abscount : NativeInt);
+    procedure   CN_AddGridInsertUpdate               (const sessionid : TFRE_DB_NameType ; const store_id,store_id_dc : TFRE_DB_String ; const upo   : IFRE_DB_Object ; const position,abscount : NativeInt);
 
     procedure   UpdateLiveStatistics                 (const stats : IFRE_DB_Object);
     function    GetSessionRangeManager               (const qryid: TFRE_DB_CACHE_DATA_KEY; out rm: TFRE_DB_SESSION_DC_RANGE_MGR; out cd: TFRE_DB_TRANSFORMED_ORDERED_DATA; out fc: TFRE_DB_FILTER_CONTAINER): boolean;
@@ -879,6 +879,38 @@ implementation
 function G_TCDM : TFRE_DB_TRANSDATA_MANAGER;
 begin
   result := GFRE_DB_TCDM as TFRE_DB_TRANSDATA_MANAGER;
+end;
+
+
+//function FREDB_CompareReflinkSpecs(const filter_spec,notify_spec : TFRE_DB_NameTypeRL):boolean;
+//var fdir,ndir:boolean;
+//    ffield,fscheme:TFRE_DB_NameTypeRL;
+//    nfield,nscheme:TFRE_DB_NameTypeRL;
+//begin
+//  fdir   := FREDB_SplitRefLinkDescription(filter_spec,ffield,fscheme);
+//  ndir   := FREDB_SplitRefLinkDescription(notify_spec,nfield,nscheme);
+//  result := false;
+//  if fdir<>ndir then
+//    exit;
+//  if nfield=ffield then
+//    if (fscheme='') or (fscheme=nscheme) then
+//      exit(true)
+//end;
+//
+function FREDB_CompareReflinkSpecs(r1,r2 : TFRE_DB_NameTypeRL ; const strict : boolean=false):boolean;
+var f1,s1,f2,s2   : TFRE_DB_NameType;
+    rc1,rc2,d1,d2 : boolean;
+begin
+  if strict then
+    exit(uppercase(r1)=uppercase(r2));
+  d1 := FREDB_SplitRefLinkDescriptionEx(r1,f1,s1,rc1);
+  d2 := FREDB_SplitRefLinkDescriptionEx(r2,f2,s2,rc2);
+  if d1<>d2 then
+    exit(false);
+  { direction is same }
+  if f1<>f2 then
+    exit(false);
+  result := true; // Schemes must not match, fields must
 end;
 
 
@@ -2061,7 +2093,7 @@ procedure TFRE_DB_SESSION_DC_RANGE_MGR.TagForUpInsDelRLC(const TransID: TFRE_DB_
 begin
   if not (pos('/',TransID)>0)  then
     raise EFRE_DB_Exception.Create(edb_ERROR,'must provide full tag');
-  GFRE_DBI.LogDebug(dblc_DBTDM,'       >QRY MATCH UP/INS/DEL/CHILDCOUNTCHANGE TAG IN RMG [%s]',[RangemanagerKeyString]);
+  GFRE_DBI.LogDebug(dblc_DBTDM,'       >QRY MATCH UP/INS/DEL/CHILDCOUNTCHANGE TAG IN RMG [%s]',[RangemanagerKeyString]); //self
   FRMGTransTag := TransID;
 end;
 
@@ -2287,11 +2319,12 @@ end;
 function TFRE_DB_FILTER_AUTO_DEPENDENCY.CheckReflinkUpdateEvent(const key_descr: TFRE_DB_NameTypeRL): boolean;
 var
   i: NativeInt;
+
 begin
   result := false;
   for i := 0 to high(FRL_Spec) do
      begin
-       if key_descr=FRL_Spec[i] then
+       if  FREDB_CompareReflinkSpecs(key_descr,FRL_Spec[i],false) then
          begin
            result := true;
            break;
@@ -2331,17 +2364,17 @@ begin
   //GFRE_DBI.NetServ.ForAllSessionsLocked(@AllSessions,halt);
 end;
 
-procedure TFRE_DB_TRANSDATA_CHANGE_NOTIFIER.AddGridInplaceUpdate(const sessionid: TFRE_DB_NameType; const store_id, store_id_dc: TFRE_DB_NameType; const upo: IFRE_DB_Object; const oldpos, newpos, abscount: NativeInt);
+procedure TFRE_DB_TRANSDATA_CHANGE_NOTIFIER.AddGridInplaceUpdate(const sessionid: TFRE_DB_NameType; const store_id, store_id_dc: TFRE_DB_String; const upo: IFRE_DB_Object; const oldpos, newpos, abscount: NativeInt);
 begin
   GetSessionUPO(sessionid).AddStoreUpdate(store_id,store_id_dc,upo,oldpos,newpos,abscount);
 end;
 
-procedure TFRE_DB_TRANSDATA_CHANGE_NOTIFIER.AddGridInsertUpdate(const sessionid: TFRE_DB_NameType; const store_id, store_id_dc: TFRE_DB_NameType; const upo: IFRE_DB_Object; const position, abscount: NativeInt);
+procedure TFRE_DB_TRANSDATA_CHANGE_NOTIFIER.AddGridInsertUpdate(const sessionid: TFRE_DB_NameType; const store_id, store_id_dc: TFRE_DB_String; const upo: IFRE_DB_Object; const position, abscount: NativeInt);
 begin
   GetSessionUPO(sessionid).AddStoreInsert(store_id,store_id_dc,upo,position,abscount);
 end;
 
-procedure TFRE_DB_TRANSDATA_CHANGE_NOTIFIER.AddGridRemoveUpdate(const sessionid: TFRE_DB_NameType; const store_id, store_id_dc: TFRE_DB_NameType; const del_id: TFRE_DB_String; const position, abscount: NativeInt);
+procedure TFRE_DB_TRANSDATA_CHANGE_NOTIFIER.AddGridRemoveUpdate(const sessionid: TFRE_DB_NameType; const store_id, store_id_dc: TFRE_DB_String; const del_id: TFRE_DB_String; const position, abscount: NativeInt);
 begin
   GetSessionUPO(sessionid).AddStoreDelete(store_id,store_id_dc,del_id,position,abscount);
 end;
@@ -5333,20 +5366,6 @@ begin
     end;
 end;
 
-function FREDB_CompareReflinkSpecs(const filter_spec,notify_spec : TFRE_DB_NameTypeRL):boolean;
-var fdir,ndir:boolean;
-    ffield,fscheme:TFRE_DB_NameTypeRL;
-    nfield,nscheme:TFRE_DB_NameTypeRL;
-begin
-  fdir   := FREDB_SplitRefLinkDescription(filter_spec,ffield,fscheme);
-  ndir   := FREDB_SplitRefLinkDescription(notify_spec,nfield,nscheme);
-  result := false;
-  if fdir<>ndir then
-    exit;
-  if nfield=ffield then
-    if (fscheme='') or (fscheme=nscheme) then
-      exit(true)
-end;
 
 procedure TFRE_DB_TRANFORMED_DATA.SetupOutboundRefLink(const from_obj: TFRE_DB_GUID; const to_obj: IFRE_DB_Object; const key_description: TFRE_DB_NameTypeRL; const transkey: TFRE_DB_TransStepId);
 var idx : NativeInt;
@@ -6142,7 +6161,7 @@ begin
   FCurrentNotify.AddDirectSessionUpdateEntry(update_dbo);
 end;
 
-procedure TFRE_DB_TRANSDATA_MANAGER.CN_AddGridInplaceUpdate(const sessionid: TFRE_DB_NameType; const store_id, store_id_dc: TFRE_DB_NameType; const upo: IFRE_DB_Object; const oldpos, newpos, abscount: NativeInt);
+procedure TFRE_DB_TRANSDATA_MANAGER.CN_AddGridInplaceUpdate(const sessionid: TFRE_DB_NameType; const store_id, store_id_dc: TFRE_DB_String; const upo: IFRE_DB_Object; const oldpos, newpos, abscount: NativeInt);
 begin
   if not assigned(FCurrentNotify) then
     raise EFRE_DB_Exception.Create(edb_ERROR,'internal/current notify gatherer not assigned / grid inplace update');
@@ -6151,7 +6170,7 @@ begin
   FCurrentNotify.AddGridInplaceUpdate(sessionid,store_id,store_id_dc,upo,oldpos,newpos,abscount);
 end;
 
-procedure TFRE_DB_TRANSDATA_MANAGER.CN_AddGridInplaceDelete(const sessionid: TFRE_DB_NameType; const store_id, store_id_dc: TFRE_DB_NameType; const del_id: TFRE_DB_String; const position, abscount: NativeInt);
+procedure TFRE_DB_TRANSDATA_MANAGER.CN_AddGridInplaceDelete(const sessionid: TFRE_DB_NameType; const store_id, store_id_dc: TFRE_DB_String; const del_id: TFRE_DB_String; const position, abscount: NativeInt);
 begin
   if not assigned(FCurrentNotify) then
     raise EFRE_DB_Exception.Create(edb_ERROR,'internal/current notify gatherer not assigned / grid delete');
@@ -6159,7 +6178,7 @@ begin
   FCurrentNotify.AddGridRemoveUpdate(sessionid,store_id,store_id_dc,del_id,position,abscount);
 end;
 
-procedure TFRE_DB_TRANSDATA_MANAGER.CN_AddGridInsertUpdate(const sessionid: TFRE_DB_NameType; const store_id, store_id_dc: TFRE_DB_NameType; const upo: IFRE_DB_Object; const position, abscount: NativeInt);
+procedure TFRE_DB_TRANSDATA_MANAGER.CN_AddGridInsertUpdate(const sessionid: TFRE_DB_NameType; const store_id, store_id_dc: TFRE_DB_String; const upo: IFRE_DB_Object; const position, abscount: NativeInt);
 begin
   if not assigned(FCurrentNotify) then
     raise EFRE_DB_Exception.Create(edb_ERROR,'internal/current notify gatherer not assigned / grid insert update');

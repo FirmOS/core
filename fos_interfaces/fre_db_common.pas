@@ -527,7 +527,7 @@ type
     //@ If defaultClose is false and no explicit close button is added the dialog will not be closable at all (e.g. force login).
     //@ sendChangedFieldsOnly true: good for data updates, false: all field values are send unconditonally, good for new objects
     //@ styleClass: used to implement a non standard styling
-    function  Describe    (const caption:String; const width:Integer=0; const defaultClose:Boolean=true; const isDraggable:Boolean=true;const sendChangedFieldsOnly: Boolean=true; const editable: Boolean=true; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC=nil; const onChangeDelay:Integer=0; const hideEmptyGroups: Boolean=true; const styleClass: String=''): TFRE_DB_FORM_DIALOG_DESC;
+    function  Describe    (const caption:String; const width:Integer=0; const defaultClose:Boolean=true; const isDraggable:Boolean=true;const sendChangedFieldsOnly: Boolean=false; const editable: Boolean=true; const onChangeFunc: TFRE_DB_SERVER_FUNC_DESC=nil; const onChangeDelay:Integer=0; const hideEmptyGroups: Boolean=true; const styleClass: String=''): TFRE_DB_FORM_DIALOG_DESC;
   end;
 
   { TFRE_DB_DIALOG_DESC }

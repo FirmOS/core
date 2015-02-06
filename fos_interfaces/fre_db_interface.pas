@@ -3171,9 +3171,9 @@ end;
   public
      constructor Create                   (const session_id : TFRE_DB_NameType);
      destructor  Destroy                  ; override;
-     procedure   AddStoreUpdate           (const store_id,store_id_dc: TFRE_DB_NameType; const upo: IFRE_DB_Object ; const oldpos,newpos,abscount : NativeInt);
-     procedure   AddStoreInsert           (const store_id,store_id_dc: TFRE_DB_NameType; const upo: IFRE_DB_Object ; const position,abscount : NativeInt);
-     procedure   AddStoreDelete           (const store_id,store_id_dc: TFRE_DB_NameType; const id: TFRE_DB_String  ; const position,abscount : NativeInt);
+     procedure   AddStoreUpdate           (const store_id,store_id_dc: TFRE_DB_String; const upo: IFRE_DB_Object ; const oldpos,newpos,abscount : NativeInt);
+     procedure   AddStoreInsert           (const store_id,store_id_dc: TFRE_DB_String; const upo: IFRE_DB_Object ; const position,abscount : NativeInt);
+     procedure   AddStoreDelete           (const store_id,store_id_dc: TFRE_DB_String; const id: TFRE_DB_String  ; const position,abscount : NativeInt);
      procedure   DispatchAllNotifications (const session:TFRE_DB_UserSession);
      procedure   cs_SendUpdatesToSession  ;
   end;
@@ -4875,21 +4875,21 @@ begin
   inherited Destroy;
 end;
 
-procedure TFRE_DB_SESSION_UPO.AddStoreUpdate(const store_id, store_id_dc: TFRE_DB_NameType; const upo: IFRE_DB_Object; const oldpos, newpos, abscount: NativeInt);
+procedure TFRE_DB_SESSION_UPO.AddStoreUpdate(const store_id, store_id_dc: TFRE_DB_String; const upo: IFRE_DB_Object; const oldpos, newpos, abscount: NativeInt);
 var update_st : TFRE_DB_UPDATE_STORE_DESC;
 begin
   update_st := GetUpdateStore(store_id,store_id_dc);
   update_st.addUpdatedEntry(upo,oldpos,newpos,abscount);
 end;
 
-procedure TFRE_DB_SESSION_UPO.AddStoreInsert(const store_id, store_id_dc: TFRE_DB_NameType; const upo: IFRE_DB_Object; const position, abscount: NativeInt);
+procedure TFRE_DB_SESSION_UPO.AddStoreInsert(const store_id, store_id_dc: TFRE_DB_String; const upo: IFRE_DB_Object; const position, abscount: NativeInt);
 var update_st : TFRE_DB_UPDATE_STORE_DESC;
 begin
   update_st := GetUpdateStore(store_id,store_id_dc);
   update_st.addNewEntry(upo,position,abscount);
 end;
 
-procedure TFRE_DB_SESSION_UPO.AddStoreDelete(const store_id, store_id_dc: TFRE_DB_NameType; const id: TFRE_DB_String; const position, abscount: NativeInt);
+procedure TFRE_DB_SESSION_UPO.AddStoreDelete(const store_id, store_id_dc: TFRE_DB_String; const id: TFRE_DB_String; const position, abscount: NativeInt);
 var update_st : TFRE_DB_UPDATE_STORE_DESC;
 begin
   update_st := GetUpdateStore(store_id,store_id_dc);
@@ -4916,7 +4916,9 @@ begin
       session.FetchDerivedCollection(stid).GetDeriveTransformation.GetFinalRightTransformFunction(frt,lang);
       ct.ForAllUpdated(@FinalTransform);
       ct.ForAllInserted(@FinalTransform);
-      //writeln('HH>>> FINAL,FINAL UPDATE DESC ',ct.DumpToString);
+      writeln('HH>>> FINAL,FINAL UPDATE DESC ');
+      writeln(ct.DumpToString);
+      writeln('-------------------------------');
       session.SendServerClientRequest(ct);
     end;
 end;
@@ -8060,6 +8062,9 @@ begin
   qry.GetTransfrom.GetFinalRightTransformFunction(frt,langr);
   resdata := qry.GetResultData;
   result := GetGridDataDescription;
+  writeln('__>>> ANSWER GGD');
+  writeln(result.DumpToString());
+  writeln('__>>> ANSWER GGD');
   qry.free;
 end;
 
