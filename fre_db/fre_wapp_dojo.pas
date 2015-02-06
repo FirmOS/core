@@ -784,7 +784,7 @@ implementation
             labelclass:='firmosFormLabel';
           end;
           jsContentAdd('"<td class=''firmosFormLabelTD''>"+');
-          jsContentAdd('"<label for='''+elem.Field('id').AsString+''' id='''+elem.Field('id').AsString+'_label'' class='''+labelclass+'''>'+elem.Field('caption').AsString+': </label>"+');
+          jsContentAdd('"<label for='''+elem.Field('id').AsString+''' id='''+elem.Field('id').AsString+'_label'' class='''+labelclass+'''>'+_EscapeValueString(elem.Field('caption').AsString)+': </label>"+');
           jsContentAdd('"</td><td>"+');
         end else begin
           jsContentAdd('"<td colspan=2>"+');
@@ -828,7 +828,7 @@ implementation
             end else begin
               jsContentAdd('"<td class=''firmosFormLabelTD''>"+');
             end;
-            jsContentAdd('"<label for='''+elem.Field('id').AsString+''' id='''+elem.Field('id').AsString+'_label'' class='''+labelclass+'''>'+elem.Field('caption').AsString+': </label>"+');
+            jsContentAdd('"<label for='''+elem.Field('id').AsString+''' id='''+elem.Field('id').AsString+'_label'' class='''+labelclass+'''>'+_EscapeValueString(elem.Field('caption').AsString)+': </label>"+');
             jsContentAdd('"</td>"+');
           end;
           jsContentAdd('"<td "+');
