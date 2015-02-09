@@ -1669,10 +1669,6 @@ begin
      and FWouldNeedMasterDelete then { this is the check phase, the internalcount is >1}
        begin
          master.DeleteObjectWithSubobjs(FDeleteList[0],check,GetNotificationRecordIF,GetTransActionStepID);
-         //for i := 0 to high(FDeleteList) do
-         //  begin
-         //    master.DeleteObjectSingle(FDeleteList[i].UID,check,GetNotificationRecordIF,GetTransActionStepID);
-         //  end;
        end
   else
     begin
@@ -1682,11 +1678,10 @@ begin
           notify_delob := FDeleteList[0].CloneToNewObject;
           notify_delob.Field(cFRE_DB_SYS_T_LMO_TRANSID).AsString:=GetTransActionStepID;
           CheckWriteThroughDeleteObj(FDeleteList[0]); { the changes must only be recorded persistent when the object is finally deleted, the internal collection assosciation is not stored persistent }
-          master.DeleteObjectWithSubobjs(FDeleteList[0],check,GetNotificationRecordIF,GetTransActionStepID);
-          //for i := high(FDeleteList) downto 0 do { the list is build recursive top down, only free the root object, bt remove the childs too !}
-          //  begin
-          //    master.DeleteObjectSingle(FDeleteList[i].UID,false,GetNotificationRecordIF,GetTransActionStepID);
-          //  end;
+          if FDeleteList[0].IsSystemDB then
+            G_SysMaster.DeleteObjectWithSubobjs(FDeleteList[0],check,GetNotificationRecordIF,GetTransActionStepID)
+          else
+            master.DeleteObjectWithSubobjs(FDeleteList[0],check,GetNotificationRecordIF,GetTransActionStepID);
           GetNotificationRecordIF.ObjectDeleted(FDelFromCollectionsNames,notify_delob,GetTransActionStepID); { Notify after delete }
         end;
       for i:=0 to high(FDelFromCollections) do
@@ -2943,13 +2938,20 @@ begin
         try
           if changes then
             begin
-              l_notifs := TList.Create;
-              FChangeList.ForAllBreak(@GatherNotifs);
-              StartNotifBlocks;
-              FChangeList.ForAllBreak(@StoreInCollection);
-              FChangeList.ForAllBreak(@MasterStore);
-              ftransid_w_layer.WT_TransactionID(FTransNumber);
-              SendNotifBlocks;
+              try
+                l_notifs := TList.Create;
+                FChangeList.ForAllBreak(@GatherNotifs);
+                StartNotifBlocks;
+                FChangeList.ForAllBreak(@StoreInCollection);
+                FChangeList.ForAllBreak(@MasterStore);
+                ftransid_w_layer.WT_TransactionID(FTransNumber);
+                SendNotifBlocks;
+              except on e:exception do
+                begin
+                  GFRE_DBI.LogEmergency(dblc_PERSISTANCE,'-TRANSACTION FAILURE (NOT IN CHECK PHASE) [%s]'+e.Message);
+                  GFRE_BT.CriticalAbort('-TRANSACTION FAILURE (NOT IN CHECK PHASE) [%s]'+e.Message);
+                end;
+              end;
             end
           else
            changes:=changes;
