@@ -184,6 +184,7 @@ type
 
 function   FRE_ProcessCMD(const cmd:string):integer;
 function   FRE_ProcessCMD(const cmd:string; var outstring,errorstring:string):integer;
+function   FRE_ProcessCMDwithInput(const cmd: string; const instring: string; var outstring, errorstring: string): integer;
 function   FRE_ProcessCMDException(const cmd:string):integer;
 
 procedure  Register_DB_Extensions;
@@ -945,16 +946,21 @@ begin
   if length(errorstring)<>0 then writeln (errorstring);
 end;
 
-function FRE_ProcessCMD(const cmd: string; var outstring, errorstring: string): integer;
+function FRE_ProcessCMDwithInput(const cmd: string; const instring: string; var outstring, errorstring: string): integer;
 var prc         : TFRE_Process;
 begin
   prc      := TFRE_Process.Create(nil);
   try
     writeln(cmd);
-    result := prc.ExecutePiped(cmd,nil,'',outstring,errorstring);
+    result := prc.ExecutePiped(cmd,nil,instring,outstring,errorstring);
   finally
     prc.free;
   end;
+end;
+
+function FRE_ProcessCMD(const cmd: string; var outstring, errorstring: string): integer;
+begin
+  result   := FRE_ProcessCMDwithInput(cmd,'',outstring,errorstring);
 end;
 
 function FRE_ProcessCMDException(const cmd: string): integer;
