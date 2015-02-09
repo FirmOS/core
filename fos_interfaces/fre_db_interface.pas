@@ -989,10 +989,12 @@ type
   { TFRE_DB_SESSION_DC_RANGE_MGR_KEY }
 
   TFRE_DB_SESSION_DC_RANGE_MGR_KEY = record
-    SessionID : TFRE_DB_SESSION_ID;
-    DataKey   : TFRE_DB_TRANS_COLL_DATA_KEY;
-    procedure Setup4QryId      (const sid : TFRE_DB_SESSION_ID ; const ok : TFRE_DB_TRANS_COLL_DATA_KEY ; const fk : TFRE_DB_TRANS_COLL_FILTER_KEY);
-    function  GetKeyAsString   : TFRE_DB_CACHE_DATA_KEY; { sessionid@parentcollection/derivedcollection/reflinkspec/orderhash/filterhash }
+    SessionID  : TFRE_DB_SESSION_ID;
+    DataKey    : TFRE_DB_TRANS_COLL_DATA_KEY;
+    Parenthash : TFRE_DB_NameTypeRL;
+    procedure Setup4QryId      (const sid : TFRE_DB_SESSION_ID ; const ok : TFRE_DB_TRANS_COLL_DATA_KEY ; const fk : TFRE_DB_TRANS_COLL_FILTER_KEY ; const pp : TFRE_DB_String); { coming from a query spec, check that the rm fits the query}
+    function  GetRmKeyAsString : TFRE_DB_CACHE_DATA_KEY; { sessionid@derivedcollection/parenthash }
+    function  GetFullKeyString : TFRE_DB_CACHE_DATA_KEY; { sessionid@parentcollection/derivedcollection/reflinkspec/orderhash/filterhash }
     procedure SetupFromQryID   (qryid : TFRE_DB_CACHE_DATA_KEY);
   end;
 
@@ -5044,16 +5046,22 @@ end;
 
 { TFRE_DB_SESSION_DC_RANGE_MGR_KEY }
 
-procedure TFRE_DB_SESSION_DC_RANGE_MGR_KEY.Setup4QryId(const sid: TFRE_DB_SESSION_ID; const ok: TFRE_DB_TRANS_COLL_DATA_KEY; const fk: TFRE_DB_TRANS_COLL_FILTER_KEY);
+procedure TFRE_DB_SESSION_DC_RANGE_MGR_KEY.Setup4QryId(const sid: TFRE_DB_SESSION_ID; const ok: TFRE_DB_TRANS_COLL_DATA_KEY; const fk: TFRE_DB_TRANS_COLL_FILTER_KEY; const pp: TFRE_DB_String);
 begin
   SessionID         := sid;
   DataKey           := ok;
   DataKey.filterkey := fk;
+  Parenthash        := GFRE_BT.HashFast32_Hex(pp);
 end;
 
-function TFRE_DB_SESSION_DC_RANGE_MGR_KEY.GetKeyAsString: TFRE_DB_CACHE_DATA_KEY;
+function TFRE_DB_SESSION_DC_RANGE_MGR_KEY.GetRmKeyAsString: TFRE_DB_CACHE_DATA_KEY;
 begin
-  result := SessionID+'@'+DataKey.GetFullKeyString;
+  result := SessionID+'@'+DataKey.DC_Name+'#'+Parenthash;
+end;
+
+function TFRE_DB_SESSION_DC_RANGE_MGR_KEY.GetFullKeyString: TFRE_DB_CACHE_DATA_KEY;
+begin
+  result := SessionID+'@'+DataKey.GetFullKeyString+'#'+Parenthash;
 end;
 
 procedure TFRE_DB_SESSION_DC_RANGE_MGR_KEY.SetupFromQryID(qryid: TFRE_DB_CACHE_DATA_KEY);

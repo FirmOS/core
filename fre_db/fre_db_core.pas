@@ -8403,15 +8403,14 @@ var i, j, cnt : NativeInt;
     end;
 
 begin
-  writeln('QRY ----------');
-  writeln(web_input.DumpToString());
-  writeln('QRY ----------');
   qrydef := SetupQryDefinitionBasic(web_input.Field('start').AsInt32,web_input.Field('end').AsInt32);
   qrydef.FullTextFilter := web_input.Field('FULLTEXT').AsString;
+
   if web_input.FieldExists('parentid') then
-    begin { this is a child query }
-      qrydef.ParentPath := WEB2ParentPath;
-    end;
+    qrydef.ParentPath := WEB2ParentPath { this is a child query }
+  else
+    qrydef.ParentPath := '';
+
   Processfilters;
   result := qrydef;
 end;
@@ -8606,6 +8605,9 @@ var
     e               : IFOS_E;
 
 begin
+  writeln('>WEB GGD QRY ----------');
+  writeln(input.DumpToString());
+  writeln('<WEB GGD  QRY ----------');
   result := GFRE_DB_SUPPRESS_SYNC_ANSWER;
   try
     MustBeInitialized;
@@ -8624,7 +8626,10 @@ end;
 
 function TFRE_DB_DERIVED_COLLECTION.WEB_RELEASE_GRID_DATA(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 begin
-  GFRE_DB_TCDM.cs_RemoveQueryRange(FLastQryID.GetKeyAsString,input.Field('START').AsInt64,input.Field('END').AsInt64);
+  writeln('>WEB RELEASE GD  ----------');
+  writeln(input.DumpToString());
+  writeln('>WEB RELEASE GD  ----------');
+  GFRE_DB_TCDM.cs_RemoveQueryRange(FLastQryID.GetFullKeyString,input.Field('START').AsInt64,input.Field('END').AsInt64);
   Result:=GFRE_DB_NIL_DESC;
 end;
 
@@ -8812,9 +8817,10 @@ function TFRE_DB_DERIVED_COLLECTION.WEB_SET_SORT_AND_FILTER(const input: IFRE_DB
 
 
 begin
-  writeln('WEB_SET_SORT_AND_FILTER: ' + input.DumpToString()); //FIXXME heli - please implement me
+///  writeln('WEB_SET_SORT_AND_FILTER: ' + input.DumpToString()); //FIXXME heli - please implement me
   ProcessOrders;
   Processfilters;
+  GFRE_DB_TCDM.cs_DropAllQueryRanges(FLastQryID.GetFullKeyString,false);
   Result:=GFRE_DB_NIL_DESC;
 end;
 
@@ -8826,9 +8832,12 @@ end;
 
 function TFRE_DB_DERIVED_COLLECTION.WEB_DESTROY_STORE(const input: IFRE_DB_Object; const ses: IFRE_DB_Usersession; const app: IFRE_DB_APPLICATION; const conn: IFRE_DB_CONNECTION): IFRE_DB_Object;
 begin
+  writeln('>WEB DESTROY STORE ----------');
+  writeln(input.DumpToString());
+  writeln('<WEB DESTROY STORE ----------');
   FDCollFiltersDyn.RemoveAllFilters;
   FDCollOrderDyn.ClearOrders;
-  GFRE_DB_TCDM.cs_DropAllQueryRanges(FLastQryID.GetKeyAsString,false);
+  GFRE_DB_TCDM.cs_DropAllQueryRanges(FLastQryID.GetFullKeyString,false);
   result := GFRE_DB_NIL_DESC;
 end;
 
